@@ -3,7 +3,6 @@ package model
 import (
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
 	"sort"
@@ -13,7 +12,8 @@ import (
 	"github.com/SlyMarbo/rss"
 	"github.com/indes/flowerss-bot/config"
 	"github.com/indes/flowerss-bot/util"
-	"github.com/jinzhu/gorm"
+	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 type Source struct {
@@ -52,7 +52,7 @@ func (s *Source) appendContents(items []*rss.Item) error {
 
 func GetSourceByUrl(url string) (*Source, error) {
 	var source Source
-	if err := db.Where("link=?", url).Find(&source).Error; err != nil {
+	if err := db.Where("link=?", url).First(&source).Error; err != nil {
 		return nil, err
 	}
 	return &source, nil
@@ -95,8 +95,8 @@ func fetchFunc(url string) (resp *http.Response, err error) {
 func FindOrNewSourceByUrl(url string) (*Source, error) {
 	var source Source
 
-	if err := db.Where("link=?", url).Find(&source).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+	if err := db.Where("link=?", url).First(&source).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			source.Link = url
 
 			// parsing task

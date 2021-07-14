@@ -2,6 +2,7 @@ project_name: flowerss-bot
 
 env:
   - GO111MODULE=on
+  - CGO_ENABLED=0
 
 before:
   hooks:
@@ -10,10 +11,6 @@ before:
 builds:
   - id: darwin
     ldflags: -s -w -X github.com/indes/flowerss-bot/config.version={{.Version}} -X github.com/indes/flowerss-bot/config.date={{.Date}} -X github.com/indes/flowerss-bot/config.commit={{ .ShortCommit }}
-    env:
-      - CGO_ENABLED=1
-      - CC=o64-clang
-      - CXX=o64-clang++
     goos:
       - darwin
     goarch:
@@ -21,8 +18,6 @@ builds:
 
   - id: linux
     ldflags: -s -w -X github.com/indes/flowerss-bot/config.version={{.Version}} -X github.com/indes/flowerss-bot/config.date={{.Date}} -X github.com/indes/flowerss-bot/config.commit={{ .ShortCommit }}
-    env:
-      - CGO_ENABLED=1
     goos:
       - linux
     goarch:
@@ -30,10 +25,6 @@ builds:
 
   - id: windows
     ldflags: -s -w -X github.com/indes/flowerss-bot/config.version={{.Version}} -X github.com/indes/flowerss-bot/config.date={{.Date}} -X github.com/indes/flowerss-bot/config.commit={{ .ShortCommit }}
-    env:
-      - CGO_ENABLED=1
-      - CC=x86_64-w64-mingw32-gcc
-      - CXX=x86_64-w64-mingw32-g++
     goos:
       - windows
     goarch:

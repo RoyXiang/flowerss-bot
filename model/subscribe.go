@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/indes/flowerss-bot/config"
+	"gorm.io/gorm"
 )
 
 const (
@@ -26,8 +27,8 @@ type Subscribe struct {
 func RegistFeed(userID int64, sourceID uint) error {
 	var subscribe Subscribe
 
-	if err := db.Where("user_id=? and source_id=?", userID, sourceID).Find(&subscribe).Error; err != nil {
-		if err.Error() == "record not found" {
+	if err := db.Where("user_id=? and source_id=?", userID, sourceID).First(&subscribe).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			subscribe.UserID = userID
 			subscribe.SourceID = sourceID
 			subscribe.EnableNotification = 1
