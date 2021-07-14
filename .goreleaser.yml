@@ -60,6 +60,9 @@ checksum:
 snapshot:
   name_template: "{{ .Tag }}-next"
 
+release:
+  prerelease: auto
+
 changelog:
   sort: asc
   filters:
