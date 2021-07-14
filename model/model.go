@@ -75,7 +75,7 @@ func Disconnect() {
 
 // createOrUpdateTable create table or Migrate table
 func createOrUpdateTable(model interface{}) {
-	if db.Migrator().HasTable(model) {
+	if !db.Migrator().HasTable(model) {
 		_ = db.Migrator().CreateTable(model)
 	} else {
 		_ = db.AutoMigrate(model)
