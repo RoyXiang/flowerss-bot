@@ -1,13 +1,15 @@
 package task
 
 import (
+	"sort"
+	"sync"
+	"time"
+
 	"github.com/indes/flowerss-bot/bot"
 	"github.com/indes/flowerss-bot/config"
 	"github.com/indes/flowerss-bot/model"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
-	"sync"
-	"time"
 )
 
 func init() {
@@ -91,6 +93,9 @@ func (t *RssUpdateTask) Start() {
 				}
 
 				if len(newContents) > 0 {
+					sort.SliceStable(newContents, func(i, j int) bool {
+						return newContents[i].CreatedAt.Before(newContents[j].CreatedAt)
+					})
 					subs := model.GetSubscriberBySource(source)
 					t.notifyAllObserverUpdate(source, newContents, subs)
 				}
