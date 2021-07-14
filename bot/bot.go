@@ -1,12 +1,13 @@
 package bot
 
 import (
-	"go.uber.org/zap"
+	"strings"
 	"time"
 
 	"github.com/indes/flowerss-bot/bot/fsm"
 	"github.com/indes/flowerss-bot/config"
 	"github.com/indes/flowerss-bot/util"
+	"go.uber.org/zap"
 	tb "gopkg.in/tucnak/telebot.v2"
 )
 
@@ -22,7 +23,17 @@ func init() {
 	if config.RunMode == config.TestMode {
 		return
 	}
-	poller := &tb.LongPoller{Timeout: 10 * time.Second}
+	var poller tb.Poller
+	if config.TelegramWebhookEndpoint == "" {
+		poller = &tb.LongPoller{Timeout: 10 * time.Second}
+	} else {
+		poller = &tb.Webhook{
+			Listen: ":5000",
+			Endpoint: &tb.WebhookEndpoint{
+				PublicURL: strings.TrimSuffix(config.TelegramWebhookEndpoint, "/") + "/" + config.BotToken,
+			},
+		}
+	}
 	spamProtected := tb.NewMiddlewarePoller(poller, func(upd *tb.Update) bool {
 		if !isUserAllowed(upd) {
 			// 检查用户是否可以使用bot

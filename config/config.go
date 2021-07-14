@@ -2,12 +2,11 @@ package config
 
 import (
 	"fmt"
+	"text/template"
+
 	"github.com/spf13/viper"
 	tb "gopkg.in/tucnak/telebot.v2"
-	"text/template"
 )
-
-var ()
 
 type RunType string
 
@@ -46,6 +45,9 @@ var (
 
 	// TelegramEndpoint telegram bot 服务器地址，默认为空
 	TelegramEndpoint string = tb.DefaultApiURL
+
+	// TelegramWebhookEndpoint telegram bot webhook 回调地址
+	TelegramWebhookEndpoint string
 
 	// UserAgent User-Agent
 	UserAgent string

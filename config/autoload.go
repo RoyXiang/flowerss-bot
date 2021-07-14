@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"github.com/spf13/viper"
-	tb "gopkg.in/tucnak/telebot.v2"
 	"log"
 	"os"
 	"path"
@@ -15,6 +13,9 @@ import (
 	"strings"
 	"testing"
 	"text/template"
+
+	"github.com/spf13/viper"
+	tb "gopkg.in/tucnak/telebot.v2"
 )
 
 func init() {
@@ -103,6 +104,10 @@ func init() {
 
 	if viper.IsSet("telegram.endpoint") {
 		TelegramEndpoint = viper.GetString("telegram.endpoint")
+	}
+
+	if viper.IsSet("telegram.webhook") {
+		TelegramWebhookEndpoint = viper.GetString("telegram.webhook")
 	}
 
 	if viper.IsSet("error_threshold") {
