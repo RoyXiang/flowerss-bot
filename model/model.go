@@ -75,7 +75,11 @@ func Disconnect() {
 
 // createOrUpdateTable create table or Migrate table
 func createOrUpdateTable(model interface{}) {
-	_ = db.AutoMigrate(model)
+	if db.Migrator().HasTable(model) {
+		_ = db.Migrator().CreateTable(model)
+	} else {
+		_ = db.AutoMigrate(model)
+	}
 }
 
 //EditTime timestamp
