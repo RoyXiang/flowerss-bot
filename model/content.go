@@ -20,7 +20,7 @@ type Content struct {
 	EditTime
 }
 
-func getContentByFeedItem(source *Source, item *rss.Item) (Content, error) {
+func getContentByFeedItem(source *Source, item *rss.Item, isFirstTime bool) (Content, error) {
 	TelegraphURL := ""
 
 	html := item.Content
@@ -31,7 +31,7 @@ func getContentByFeedItem(source *Source, item *rss.Item) (Content, error) {
 	html = strings.Replace(html, "<![CDATA[", "", -1)
 	html = strings.Replace(html, "]]>", "", -1)
 
-	if config.EnableTelegraph && len([]rune(html)) > config.PreviewText {
+	if !isFirstTime && config.EnableTelegraph && len([]rune(html)) > config.PreviewText {
 		TelegraphURL = PublishItem(source, item, html)
 	}
 
@@ -59,7 +59,7 @@ func GenContentAndCheckByFeedItem(s *Source, item *rss.Item) (*Content, bool, er
 	db.Where("hash_id=?", hashID).First(&content)
 	if content.HashID == "" {
 		isBroaded = false
-		content, _ = getContentByFeedItem(s, item)
+		content, _ = getContentByFeedItem(s, item, false)
 		db.Save(&content)
 	} else {
 		isBroaded = true

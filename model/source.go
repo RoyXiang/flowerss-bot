@@ -39,9 +39,9 @@ func (s SortedFeedItems) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
-func (s *Source) appendContents(items []*rss.Item) error {
+func (s *Source) appendContents(items []*rss.Item, isFirstTime bool) error {
 	for _, item := range items {
-		c, _ := getContentByFeedItem(s, item)
+		c, _ := getContentByFeedItem(s, item, isFirstTime)
 		s.Content = append(s.Content, c)
 	}
 	// 开启task更新
@@ -113,7 +113,7 @@ func FindOrNewSourceByUrl(url string) (*Source, error) {
 			// Get contents and insert
 			items := feed.Items
 			db.Create(&source)
-			go source.appendContents(items)
+			go source.appendContents(items, true)
 			return &source, nil
 		}
 		return nil, err
