@@ -25,6 +25,20 @@ type Source struct {
 	EditTime
 }
 
+type SortedFeedItems []*rss.Item
+
+func (s SortedFeedItems) Len() int {
+	return len(s)
+}
+
+func (s SortedFeedItems) Less(i, j int) bool {
+	return s[i].Date.Before(s[j].Date)
+}
+
+func (s SortedFeedItems) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
 func (s *Source) appendContents(items []*rss.Item) error {
 	for _, item := range items {
 		c, _ := getContentByFeedItem(s, item)
@@ -164,6 +178,7 @@ func (s *Source) GetNewContents() ([]*Content, error) {
 	s.EraseErrorCount()
 
 	items := feed.Items
+	sort.Sort(SortedFeedItems(items))
 	for _, item := range items {
 		c, isBroad, _ := GenContentAndCheckByFeedItem(s, item)
 		if !isBroad {
