@@ -70,7 +70,7 @@ func FeedForChannelRegister(m *tb.Message, url string, channelMention string) {
 
 func registFeed(chat *tb.Chat, url string) {
 	msg, err := B.Send(chat, "处理中...")
-	url = model.ProcessWechatURL(url)
+
 	source, err := model.FindOrNewSourceByUrl(url)
 
 	if err != nil {
