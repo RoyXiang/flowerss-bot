@@ -17,8 +17,8 @@ import (
 )
 
 type Source struct {
-	ID         uint `gorm:"primary_key;AUTO_INCREMENT"`
-	Link       string
+	ID         uint   `gorm:"primary_key;AUTO_INCREMENT"`
+	Link       string `gorm:"uniqueIndex"`
 	Title      string
 	ErrorCount uint
 	Content    []Content

@@ -6,8 +6,8 @@ import "errors"
 //
 // TelegramID 用作外键
 type User struct {
-	ID         int64 `gorm:"primary_key"`
-	TelegramID int64
+	ID         int64    `gorm:"primary_key"`
+	TelegramID int64    `gorm:"uniqueIndex"`
 	Source     []Source `gorm:"many2many:subscribes;"`
 	State      int      `gorm:"DEFAULT:0;"`
 	EditTime

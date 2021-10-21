@@ -13,9 +13,9 @@ const (
 )
 
 type Subscribe struct {
-	ID                 uint `gorm:"primary_key;AUTO_INCREMENT"`
-	UserID             int64
-	SourceID           uint
+	ID                 uint  `gorm:"primary_key;AUTO_INCREMENT"`
+	UserID             int64 `gorm:"index"`
+	SourceID           uint  `gorm:"index"`
 	EnableNotification int
 	EnableTelegraph    int
 	Tag                string
