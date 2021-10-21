@@ -1,7 +1,6 @@
 package task
 
 import (
-	"sort"
 	"sync"
 	"time"
 
@@ -93,9 +92,6 @@ func (t *RssUpdateTask) Start() {
 				}
 
 				if len(newContents) > 0 {
-					sort.SliceStable(newContents, func(i, j int) bool {
-						return newContents[i].CreatedAt.Before(newContents[j].CreatedAt)
-					})
 					subs := model.GetSubscriberBySource(source)
 					t.notifyAllObserverUpdate(source, newContents, subs)
 				}

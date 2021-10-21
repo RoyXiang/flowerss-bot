@@ -98,6 +98,9 @@ func FindOrNewSourceByUrl(url string) (*Source, error) {
 
 			// Get contents and insert
 			items := feed.Items
+			sort.SliceStable(items, func(i, j int) bool {
+				return items[i].Date.Before(items[j].Date)
+			})
 			db.Create(&source)
 			go source.appendContents(items)
 			return &source, nil
@@ -164,6 +167,9 @@ func (s *Source) GetNewContents() ([]*Content, error) {
 	s.EraseErrorCount()
 
 	items := feed.Items
+	sort.SliceStable(items, func(i, j int) bool {
+		return items[i].Date.Before(items[j].Date)
+	})
 	for _, item := range items {
 		c, isBroad, _ := GenContentAndCheckByFeedItem(s, item)
 		if !isBroad {
