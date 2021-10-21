@@ -129,7 +129,7 @@ func GetSubscribedNormalSources() []*Source {
 
 func (s *Source) IsSubscribed() bool {
 	var sub Subscribe
-	db.Where("source_id=?", s.ID).First(&sub)
+	db.Where("source_id=?", s.ID).FirstOrInit(&sub)
 	return sub.SourceID == s.ID
 }
 
