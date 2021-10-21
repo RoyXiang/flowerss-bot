@@ -1,18 +1,24 @@
 package model
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/SlyMarbo/rss"
 	"github.com/indes/flowerss-bot/config"
 	"github.com/indes/flowerss-bot/tgraph"
+	"gorm.io/gorm"
+)
+
+const (
+	magnetPrefix = "magnet:?xt=urn:btih:"
 )
 
 // Content feed content
 type Content struct {
 	SourceID     uint
 	HashID       string `gorm:"primary_key"`
-	RawID        string
+	RawID        string `gorm:"index"`
 	RawLink      string
 	Title        string
 	Description  string `gorm:"-"` //ignore to db
@@ -53,11 +59,16 @@ func GenContentAndCheckByFeedItem(s *Source, item *rss.Item) (*Content, bool, er
 	var (
 		content   Content
 		isBroaded bool
+		err       error
 	)
 
-	hashID := genHashID(s.Link, item.ID)
-	db.Where("hash_id=?", hashID).First(&content)
-	if content.HashID == "" {
+	if strings.HasPrefix(item.ID, magnetPrefix) {
+		err = db.Where("raw_id=?", item.ID).First(&content).Error
+	} else {
+		hashID := genHashID(s.Link, item.ID)
+		err = db.Where("hash_id=?", hashID).First(&content).Error
+	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		isBroaded = false
 		content, _ = getContentByFeedItem(s, item, false)
 		db.Create(&content)
