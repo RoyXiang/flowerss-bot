@@ -25,9 +25,9 @@ type Source struct {
 	EditTime
 }
 
-func (s *Source) appendContents(items []*rss.Item, isFirstTime bool) error {
+func (s *Source) appendContents(items []*rss.Item) error {
 	for _, item := range items {
-		c, _ := getContentByFeedItem(s, item, isFirstTime)
+		c, _ := getContentByFeedItem(s, item, true)
 		s.Content = append(s.Content, c)
 	}
 	// 开启task更新
@@ -99,7 +99,7 @@ func FindOrNewSourceByUrl(url string) (*Source, error) {
 			// Get contents and insert
 			items := feed.Items
 			db.Create(&source)
-			go source.appendContents(items, true)
+			go source.appendContents(items)
 			return &source, nil
 		}
 		return nil, err
