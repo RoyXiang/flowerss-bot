@@ -1,7 +1,10 @@
 package bot
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strings"
 
@@ -174,6 +177,59 @@ func BroadcastSourceError(source *model.Source) {
 		_, _ = B.Send(&u, message, &tb.SendOptions{
 			ParseMode: tb.ModeMarkdown,
 		})
+	}
+}
+
+type webhookBody struct {
+	Title string   `json:"title"`
+	Guid  string   `json:"guid"`
+	Link  string   `json:"link"`
+	Tags  []string `json:"tags"`
+}
+
+// SendWebhook send new contents to webhook
+func SendWebhook(subs []*model.Subscribe, contents []*model.Content) {
+	webhooks := make(map[string]struct{})
+	exists := struct{}{}
+	for _, sub := range subs {
+		if sub.Webhook != "" {
+			webhooks[sub.Webhook] = exists
+		}
+	}
+	if len(webhooks) == 0 {
+		return
+	}
+
+	for _, content := range contents {
+		body := webhookBody{
+			Title: content.Title,
+			Guid:  content.RawID,
+			Link:  content.RawLink,
+		}
+
+		client := &http.Client{}
+		for _, sub := range subs {
+			if sub.Webhook == "" {
+				continue
+			}
+
+			if sub.Tag != "" {
+				tags := strings.Split(sub.Tag, " ")
+				body.Tags = make([]string, len(tags))
+				for i, tag := range tags {
+					body.Tags[i] = tag[1:]
+				}
+			} else {
+				body.Tags = make([]string, 0)
+			}
+			b := new(bytes.Buffer)
+			_ = json.NewEncoder(b).Encode(body)
+
+			req, _ := http.NewRequest("POST", sub.Webhook, b)
+			req.Header.Set("User-Agent", config.UserAgent)
+			req.Header.Set("Content-Type", "application/json; charset=utf-8")
+			_, _ = client.Do(req)
+		}
 	}
 }
 

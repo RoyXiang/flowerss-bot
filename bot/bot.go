@@ -146,6 +146,8 @@ func setHandle() {
 
 	B.Handle("/setfeedtag", setFeedTagCmdCtr)
 
+	B.Handle("/setwebhook", setWebhookCmdCtr)
+
 	B.Handle("/setinterval", setIntervalCmdCtr)
 
 	B.Handle("/check", checkCmdCtr)

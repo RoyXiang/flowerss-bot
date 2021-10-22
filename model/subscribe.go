@@ -19,6 +19,7 @@ type Subscribe struct {
 	EnableNotification int
 	EnableTelegraph    int
 	Tag                string
+	Webhook            string
 	Interval           int
 	WaitTime           int
 	EditTime
@@ -200,6 +201,12 @@ func (s *Subscribe) SetTag(tags []string) error {
 	tagStr := strings.Join(tags, " #")
 
 	s.Tag = "#" + tagStr
+	return nil
+}
+
+func (s *Subscribe) SetWebhook(webhook string) error {
+	defer s.Save()
+	s.Webhook = webhook
 	return nil
 }
 

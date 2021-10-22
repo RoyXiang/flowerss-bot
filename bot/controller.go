@@ -880,6 +880,49 @@ func setFeedTagCmdCtr(m *tb.Message) {
 	B.Send(m.Chat, "订阅标签设置成功!")
 }
 
+func setWebhookCmdCtr(m *tb.Message) {
+	args := strings.Split(m.Payload, " ")
+	if len(args) < 1 {
+		_, _ = B.Send(m.Chat, "/setwebhook [sub id] [webhook]")
+	}
+
+	url, mention := GetURLAndMentionFromMessage(m)
+	var subID int
+	var err error
+	if mention == "" {
+		subID, err = strconv.Atoi(args[0])
+		if err != nil {
+			_, _ = B.Send(m.Chat, "请输入正确的订阅id!")
+			return
+		}
+	} else {
+		subID, err = strconv.Atoi(args[1])
+		if err != nil {
+			_, _ = B.Send(m.Chat, "请输入正确的订阅id!")
+			return
+		}
+	}
+
+	sub, err := model.GetSubscribeByID(subID)
+	if err != nil || sub == nil {
+		_, _ = B.Send(m.Chat, "请输入正确的订阅id!")
+		return
+	}
+
+	if !checkPermit(int64(m.Sender.ID), sub.UserID) {
+		_, _ = B.Send(m.Chat, "没有权限!")
+		return
+	}
+
+	err = sub.SetWebhook(url)
+
+	if err != nil {
+		_, _ = B.Send(m.Chat, "订阅webhook设置失败!")
+		return
+	}
+	_, _ = B.Send(m.Chat, "订阅webhook设置成功!")
+}
+
 func setIntervalCmdCtr(m *tb.Message) {
 
 	args := strings.Split(m.Payload, " ")
