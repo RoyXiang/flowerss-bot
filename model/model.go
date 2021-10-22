@@ -59,6 +59,8 @@ func connectDB() {
 				config.Mysql.User, config.Mysql.Password, config.Mysql.Host, config.Mysql.Port, config.Mysql.DB),
 		}), dbConfig)
 	} else {
+		dbConfig.SkipDefaultTransaction = true
+		dbConfig.PrepareStmt = true
 		db, err = gorm.Open(sqlite.Open(config.SQLitePath), dbConfig)
 	}
 	if err != nil {
