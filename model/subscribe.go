@@ -199,8 +199,12 @@ func (s *Subscribe) SetTag(tags []string) error {
 	defer s.Save()
 
 	tagStr := strings.Join(tags, " #")
+	if tagStr != "" {
+		s.Tag = "#" + tagStr
+	} else {
+		s.Tag = ""
+	}
 
-	s.Tag = "#" + tagStr
 	return nil
 }
 
