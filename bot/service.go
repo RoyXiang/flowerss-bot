@@ -12,6 +12,7 @@ import (
 
 	"github.com/indes/flowerss-bot/config"
 	"github.com/indes/flowerss-bot/model"
+	"github.com/indes/flowerss-bot/util"
 
 	tb "gopkg.in/tucnak/telebot.v2"
 )
@@ -207,7 +208,6 @@ func SendWebhook(subs []*model.Subscribe, contents []*model.Content) {
 			Link:  content.RawLink,
 		}
 
-		client := &http.Client{}
 		for _, sub := range subs {
 			if sub.Webhook == "" {
 				continue
@@ -228,7 +228,7 @@ func SendWebhook(subs []*model.Subscribe, contents []*model.Content) {
 			req, _ := http.NewRequest("POST", sub.Webhook, b)
 			req.Header.Set("User-Agent", config.UserAgent)
 			req.Header.Set("Content-Type", "application/json; charset=utf-8")
-			_, _ = client.Do(req)
+			_, _ = util.HttpClient.Do(req)
 		}
 	}
 }
