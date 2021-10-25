@@ -49,12 +49,7 @@ func fetchFunc(url string) (resp *http.Response, err error) {
 	if err != nil {
 		zap.S().Fatal(err)
 	}
-
-	if config.UserAgent != "" {
-		req.Header.Set("User-Agent", config.UserAgent)
-	} else {
-		req.Header.Set("User-Agent", "flowerss/2.0")
-	}
+	req.Header.Set("User-Agent", config.UserAgent)
 
 	resp, err = util.HttpClient.Do(req)
 

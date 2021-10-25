@@ -64,6 +64,9 @@ func init() {
 	BotToken = viper.GetString("bot_token")
 	Socks5 = viper.GetString("socks5")
 	UserAgent = viper.GetString("user_agent")
+	if UserAgent == "" {
+		UserAgent = fmt.Sprintf("flowerss/%s", version)
+	}
 
 	if viper.IsSet("telegraph_token") {
 		EnableTelegraph = true
