@@ -6,6 +6,7 @@ import (
 
 	"github.com/cloudquery/sqlite"
 	"github.com/indes/flowerss-bot/config"
+	"github.com/indes/flowerss-bot/log"
 	"go.uber.org/zap"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -42,14 +43,14 @@ func connectDB() {
 		return
 	}
 
-	var newLogger logger.Interface
+	dbLogger := &log.DbLogger{}
 	if config.DBLogMode {
-		newLogger = logger.Default.LogMode(logger.Info)
+		dbLogger.LogMode(logger.Info)
 	} else {
-		newLogger = logger.Default.LogMode(logger.Error)
+		dbLogger.LogMode(logger.Error)
 	}
 	dbConfig := &gorm.Config{
-		Logger: newLogger,
+		Logger: dbLogger,
 	}
 
 	var err error
