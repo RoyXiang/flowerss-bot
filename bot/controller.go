@@ -237,7 +237,9 @@ func listCmdCtr(m *tb.Message) {
 			rspMessage = fmt.Sprintf("频道 [%s](https://t.me/%s) 订阅列表为空", channelChat.Title, channelChat.Username)
 		} else {
 			for sub, source := range subSourceMap {
-				rspMessage = rspMessage + fmt.Sprintf("[[%d]] [%s](%s)\n", sub.ID, source.Title, source.Link)
+				sourceTitle := strings.ReplaceAll(source.Title, "[", "\\[")
+				sourceTitle = strings.ReplaceAll(sourceTitle, "]", "\\]")
+				rspMessage = rspMessage + fmt.Sprintf("[[%d]] [%s](%s)\n", sub.ID, sourceTitle, source.Link)
 			}
 		}
 	} else {
@@ -264,7 +266,9 @@ func listCmdCtr(m *tb.Message) {
 			rspMessage = "订阅列表为空"
 		} else {
 			for sub, source := range subSourceMap {
-				rspMessage = rspMessage + fmt.Sprintf("[[%d]] [%s](%s)\n", sub.ID, source.Title, source.Link)
+				sourceTitle := strings.ReplaceAll(source.Title, "[", "\\[")
+				sourceTitle = strings.ReplaceAll(sourceTitle, "]", "\\]")
+				rspMessage = rspMessage + fmt.Sprintf("[[%d]] [%s](%s)\n", sub.ID, sourceTitle, source.Link)
 			}
 		}
 	}
