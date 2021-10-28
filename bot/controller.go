@@ -3,7 +3,7 @@ package bot
 import (
 	"bytes"
 	"fmt"
-	"go.uber.org/zap"
+	"html"
 	"html/template"
 	"strconv"
 	"strings"
@@ -12,6 +12,7 @@ import (
 	"github.com/indes/flowerss-bot/bot/fsm"
 	"github.com/indes/flowerss-bot/config"
 	"github.com/indes/flowerss-bot/model"
+	"go.uber.org/zap"
 
 	tb "gopkg.in/tucnak/telebot.v2"
 )
@@ -232,14 +233,12 @@ func listCmdCtr(m *tb.Message) {
 		}
 
 		sources, _ := model.GetSourcesByUserID(channelChat.ID)
-		rspMessage = fmt.Sprintf("频道 [%s](https://t.me/%s) 订阅列表：\n", channelChat.Title, channelChat.Username)
 		if len(sources) == 0 {
-			rspMessage = fmt.Sprintf("频道 [%s](https://t.me/%s) 订阅列表为空", channelChat.Title, channelChat.Username)
+			rspMessage = fmt.Sprintf("频道 <a href=\"https://t.me/%s\">%s</a> 订阅列表为空", channelChat.Username, html.EscapeString(channelChat.Title))
 		} else {
+			rspMessage = fmt.Sprintf("频道 <a href=\"https://t.me/%s\">%s</a> 订阅列表：\n", channelChat.Username, html.EscapeString(channelChat.Title))
 			for sub, source := range subSourceMap {
-				sourceTitle := strings.ReplaceAll(source.Title, "[", "\\[")
-				sourceTitle = strings.ReplaceAll(sourceTitle, "]", "\\]")
-				rspMessage = rspMessage + fmt.Sprintf("[[%d]] [%s](%s)\n", sub.ID, sourceTitle, source.Link)
+				rspMessage = rspMessage + fmt.Sprintf("[%d] <a href=\"%s\">%s</a>\n", sub.ID, source.Link, html.EscapeString(source.Title))
 			}
 		}
 	} else {
@@ -261,20 +260,18 @@ func listCmdCtr(m *tb.Message) {
 			return
 		}
 
-		rspMessage = "当前订阅列表：\n"
 		if len(subSourceMap) == 0 {
 			rspMessage = "订阅列表为空"
 		} else {
+			rspMessage = "当前订阅列表：\n"
 			for sub, source := range subSourceMap {
-				sourceTitle := strings.ReplaceAll(source.Title, "[", "\\[")
-				sourceTitle = strings.ReplaceAll(sourceTitle, "]", "\\]")
-				rspMessage = rspMessage + fmt.Sprintf("[[%d]] [%s](%s)\n", sub.ID, sourceTitle, source.Link)
+				rspMessage = rspMessage + fmt.Sprintf("[%d] <a href=\"%s\">%s</a>\n", sub.ID, source.Link, html.EscapeString(source.Title))
 			}
 		}
 	}
 	_, _ = B.Send(m.Chat, rspMessage, &tb.SendOptions{
 		DisableWebPagePreview: true,
-		ParseMode:             tb.ModeMarkdown,
+		ParseMode:             tb.ModeHTML,
 	})
 }
 
@@ -305,18 +302,18 @@ func checkCmdCtr(m *tb.Message) {
 		}
 
 		sources, _ := model.GetErrorSourcesByUserID(channelChat.ID)
-		message := fmt.Sprintf("频道 [%s](https://t.me/%s) 失效订阅的列表：\n", channelChat.Title, channelChat.Username)
+		message := fmt.Sprintf("频道 <a href=\"https://t.me/%s\">%s</a> 失效订阅的列表：\n", channelChat.Username, html.EscapeString(channelChat.Title))
 		if len(sources) == 0 {
-			message = fmt.Sprintf("频道 [%s](https://t.me/%s) 所有订阅正常", channelChat.Title, channelChat.Username)
+			message = fmt.Sprintf("频道 <a href=\"https://t.me/%s\">%s</a> 所有订阅正常", channelChat.Username, html.EscapeString(channelChat.Title))
 		} else {
 			for _, source := range sources {
-				message = message + fmt.Sprintf("[[%d]] [%s](%s)\n", source.ID, source.Title, source.Link)
+				message = message + fmt.Sprintf("[%d] <a href=\"%s\">%s</a>\n", source.ID, source.Link, html.EscapeString(source.Title))
 			}
 		}
 
 		_, _ = B.Send(m.Chat, message, &tb.SendOptions{
 			DisableWebPagePreview: true,
-			ParseMode:             tb.ModeMarkdown,
+			ParseMode:             tb.ModeHTML,
 		})
 
 	} else {
@@ -326,12 +323,12 @@ func checkCmdCtr(m *tb.Message) {
 			message = "所有订阅正常"
 		} else {
 			for _, source := range sources {
-				message = message + fmt.Sprintf("[[%d]] [%s](%s)\n", source.ID, source.Title, source.Link)
+				message = message + fmt.Sprintf("[%d] <a href=\"%s\">%s</a>\n", source.ID, source.Link, html.EscapeString(source.Title))
 			}
 		}
 		_, _ = B.Send(m.Chat, message, &tb.SendOptions{
 			DisableWebPagePreview: true,
-			ParseMode:             tb.ModeMarkdown,
+			ParseMode:             tb.ModeHTML,
 		})
 	}
 
@@ -565,10 +562,10 @@ func unsubCmdCtr(m *tb.Message) {
 				if err == nil {
 					_, _ = B.Send(
 						m.Chat,
-						fmt.Sprintf("[%s](%s) 退订成功！", source.Title, source.Link),
+						fmt.Sprintf("<a href=\"%s\">%s</a> 退订成功！", source.Link, html.EscapeString(source.Title)),
 						&tb.SendOptions{
 							DisableWebPagePreview: true,
-							ParseMode:             tb.ModeMarkdown,
+							ParseMode:             tb.ModeHTML,
 						},
 					)
 					zap.S().Infof("%d unsubscribe [%d]%s %s", m.Chat.ID, source.ID, source.Title, source.Link)
@@ -645,10 +642,10 @@ func unsubCmdCtr(m *tb.Message) {
 				if err.Error() == "record not found" {
 					_, _ = B.Send(
 						m.Chat,
-						fmt.Sprintf("频道 [%s](https://t.me/%s) 未订阅该RSS源", channelChat.Title, channelChat.Username),
+						fmt.Sprintf("频道 <a href=\"https://t.me/%s\">%s</a> 未订阅该RSS源", channelChat.Username, html.EscapeString(channelChat.Title)),
 						&tb.SendOptions{
 							DisableWebPagePreview: true,
-							ParseMode:             tb.ModeMarkdown,
+							ParseMode:             tb.ModeHTML,
 						},
 					)
 
@@ -663,10 +660,10 @@ func unsubCmdCtr(m *tb.Message) {
 			if err == nil {
 				_, _ = B.Send(
 					m.Chat,
-					fmt.Sprintf("频道 [%s](https://t.me/%s) 退订 [%s](%s) 成功", channelChat.Title, channelChat.Username, source.Title, source.Link),
+					fmt.Sprintf("频道 <a href=\"https://t.me/%s\">%s</a> 退订 <a href=\"%s\">%s</a> 成功", channelChat.Username, html.EscapeString(channelChat.Title), source.Link, html.EscapeString(source.Title)),
 					&tb.SendOptions{
 						DisableWebPagePreview: true,
-						ParseMode:             tb.ModeMarkdown,
+						ParseMode:             tb.ModeHTML,
 					},
 				)
 				zap.S().Infof("%d for [%d]%s unsubscribe %s", m.Chat.ID, source.ID, source.Title, source.Link)
@@ -997,11 +994,11 @@ func activeAllCmdCtr(m *tb.Message) {
 		}
 
 		_ = model.ActiveSourcesByUserID(channelChat.ID)
-		message := fmt.Sprintf("频道 [%s](https://t.me/%s) 订阅已全部开启", channelChat.Title, channelChat.Username)
+		message := fmt.Sprintf("频道 <a href=\"https://t.me/%s\">%s</a> 订阅已全部开启", channelChat.Username, html.EscapeString(channelChat.Title))
 
 		_, _ = B.Send(m.Chat, message, &tb.SendOptions{
 			DisableWebPagePreview: true,
-			ParseMode:             tb.ModeMarkdown,
+			ParseMode:             tb.ModeHTML,
 		})
 
 	} else {
@@ -1010,7 +1007,7 @@ func activeAllCmdCtr(m *tb.Message) {
 
 		_, _ = B.Send(m.Chat, message, &tb.SendOptions{
 			DisableWebPagePreview: true,
-			ParseMode:             tb.ModeMarkdown,
+			ParseMode:             tb.ModeHTML,
 		})
 	}
 
@@ -1043,11 +1040,11 @@ func pauseAllCmdCtr(m *tb.Message) {
 		}
 
 		_ = model.PauseSourcesByUserID(channelChat.ID)
-		message := fmt.Sprintf("频道 [%s](https://t.me/%s) 订阅已全部暂停", channelChat.Title, channelChat.Username)
+		message := fmt.Sprintf("频道 <a href=\"https://t.me/%s\">%s</a> 订阅已全部暂停", channelChat.Username, html.EscapeString(channelChat.Title))
 
 		_, _ = B.Send(m.Chat, message, &tb.SendOptions{
 			DisableWebPagePreview: true,
-			ParseMode:             tb.ModeMarkdown,
+			ParseMode:             tb.ModeHTML,
 		})
 
 	} else {
@@ -1056,7 +1053,7 @@ func pauseAllCmdCtr(m *tb.Message) {
 
 		_, _ = B.Send(m.Chat, message, &tb.SendOptions{
 			DisableWebPagePreview: true,
-			ParseMode:             tb.ModeMarkdown,
+			ParseMode:             tb.ModeHTML,
 		})
 	}
 
@@ -1094,9 +1091,9 @@ func textCtr(m *tb.Message) {
 
 				_, _ = B.Send(
 					m.Chat,
-					fmt.Sprintf("[%s](%s) 退订成功", source.Title, source.Link),
+					fmt.Sprintf("<a href=\"%s\">%s</a> 退订成功", source.Link, html.EscapeString(source.Title)),
 					&tb.SendOptions{
-						ParseMode: tb.ModeMarkdown,
+						ParseMode: tb.ModeHTML,
 					}, &tb.ReplyMarkup{
 						ReplyKeyboardRemove: true,
 					},

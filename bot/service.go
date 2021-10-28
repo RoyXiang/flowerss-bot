@@ -4,15 +4,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"html"
 	"net/http"
 	"regexp"
 	"strings"
 
-	"go.uber.org/zap"
-
 	"github.com/indes/flowerss-bot/config"
 	"github.com/indes/flowerss-bot/model"
 	"github.com/indes/flowerss-bot/util"
+	"go.uber.org/zap"
 
 	tb "gopkg.in/tucnak/telebot.v2"
 )
@@ -56,16 +56,16 @@ func FeedForChannelRegister(m *tb.Message, url string, channelMention string) {
 
 	if err == nil {
 		newText := fmt.Sprintf(
-			"频道 [%s](https://t.me/%s) 订阅 [%s](%s) 成功",
-			channelChat.Title,
+			"频道 <a href=\"https://t.me/%s\">%s</a> 订阅 <a href=\"%s\">%s</a> 成功",
 			channelChat.Username,
-			source.Title,
+			html.EscapeString(channelChat.Title),
 			source.Link,
+			html.EscapeString(source.Title),
 		)
 		_, err = B.Edit(msg, newText,
 			&tb.SendOptions{
 				DisableWebPagePreview: true,
-				ParseMode:             tb.ModeMarkdown,
+				ParseMode:             tb.ModeHTML,
 			})
 	} else {
 		_, _ = B.Edit(msg, "订阅失败")
@@ -86,10 +86,10 @@ func registFeed(chat *tb.Chat, url string) {
 	zap.S().Infof("%d subscribe [%d]%s %s", chat.ID, source.ID, source.Title, source.Link)
 
 	if err == nil {
-		_, _ = B.Edit(msg, fmt.Sprintf("[%s](%s) 订阅成功", source.Title, source.Link),
+		_, _ = B.Edit(msg, fmt.Sprintf("<a href=\"%s\">%s</a> 订阅成功", source.Link, html.EscapeString(source.Title)),
 			&tb.SendOptions{
 				DisableWebPagePreview: true,
-				ParseMode:             tb.ModeMarkdown,
+				ParseMode:             tb.ModeHTML,
 			})
 	} else {
 		_, _ = B.Edit(msg, "订阅失败")
@@ -173,10 +173,10 @@ func BroadcastSourceError(source *model.Source) {
 	subs := model.GetSubscriberBySource(source)
 	var u tb.User
 	for _, sub := range subs {
-		message := fmt.Sprintf("[%s](%s) 已经累计连续%d次更新失败，暂时停止更新", source.Title, source.Link, config.ErrorThreshold)
+		message := fmt.Sprintf("<a href=\"%s\">%s</a> 已经累计连续%d次更新失败，暂时停止更新", source.Link, html.EscapeString(source.Title), config.ErrorThreshold)
 		u.ID = int(sub.UserID)
 		_, _ = B.Send(&u, message, &tb.SendOptions{
-			ParseMode: tb.ModeMarkdown,
+			ParseMode: tb.ModeHTML,
 		})
 	}
 }
