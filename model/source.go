@@ -159,7 +159,7 @@ func (s *Source) GetNewContents() ([]*Content, error) {
 		return nil, err
 	}
 
-	s.EraseErrorCount()
+	s.EraseErrorCount(feed)
 
 	items := feed.Items
 	sort.SliceStable(items, func(i, j int) bool {
@@ -264,7 +264,8 @@ func (s *Source) AddErrorCount() {
 	s.Save()
 }
 
-func (s *Source) EraseErrorCount() {
+func (s *Source) EraseErrorCount(feed *rss.Feed) {
+	s.Title = feed.Title
 	s.ErrorCount = 0
 	s.Save()
 }
