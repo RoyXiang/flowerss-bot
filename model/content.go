@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	magnetPrefix = "magnet:?xt=urn:btih:"
+	magnetPrefix       = "magnet:?xt=urn:btih:"
+	torrentContentType = "application/x-bittorrent"
 )
 
 // Content feed content
@@ -20,6 +21,7 @@ type Content struct {
 	HashID       string `gorm:"primary_key"`
 	RawID        string `gorm:"index"`
 	RawLink      string
+	TorrentUrl   string
 	Title        string
 	Description  string `gorm:"-"` //ignore to db
 	TelegraphURL string
@@ -49,6 +51,13 @@ func getContentByFeedItem(source *Source, item *rss.Item, isFirstTime bool) (Con
 		HashID:       genHashID(source.Link, item.ID),
 		TelegraphURL: TelegraphURL,
 		RawLink:      item.Link,
+	}
+
+	for _, enclosure := range item.Enclosures {
+		if enclosure.Type == torrentContentType {
+			c.TorrentUrl = enclosure.URL
+			break
+		}
 	}
 
 	return c, nil

@@ -202,10 +202,14 @@ func SendWebhook(subs []*model.Subscribe, contents []*model.Content) {
 	}
 
 	for _, content := range contents {
+		if content.TorrentUrl == "" {
+			continue
+		}
+
 		body := webhookBody{
 			Title: content.Title,
 			Guid:  content.RawID,
-			Link:  content.RawLink,
+			Link:  content.TorrentUrl,
 		}
 
 		for _, sub := range subs {
