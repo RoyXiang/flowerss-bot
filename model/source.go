@@ -26,12 +26,21 @@ type Source struct {
 }
 
 func (s *Source) appendContents(items []*rss.Item) error {
+	var contents []Content
+	hasTorrent := false
 	for _, item := range items {
-		c, _ := getContentByFeedItem(s, item, true)
-		s.Content = append(s.Content, c)
+		c, _ := getContentByFeedItem(s, item)
+		if c.TorrentUrl != "" {
+			hasTorrent = true
+			break
+		}
+		contents = append(contents, c)
 	}
 	// 开启task更新
 	s.ErrorCount = 0
+	if !hasTorrent {
+		s.Content = contents
+	}
 	db.Save(&s)
 	return nil
 }
@@ -170,6 +179,20 @@ func (s *Source) GetNewContents() ([]*Content, error) {
 		if !isBroad {
 			newContents = append(newContents, c)
 		}
+	}
+
+	var firstContent Content
+	shouldPublish := config.EnableTelegraph
+	if err := db.Where("source_id=?", s.ID).First(&firstContent).Error; errors.Is(err, gorm.ErrRecordNotFound) {
+		if len(newContents) > 1 {
+			shouldPublish = false
+		}
+	}
+	for _, content := range newContents {
+		if shouldPublish {
+			content.Publish(s)
+		}
+		db.Create(content)
 	}
 
 	return newContents, nil

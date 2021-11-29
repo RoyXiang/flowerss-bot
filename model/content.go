@@ -46,9 +46,17 @@ func (c *Content) GetTriggerId() string {
 	return c.TorrentUrl
 }
 
-func getContentByFeedItem(source *Source, item *rss.Item, isFirstTime bool) (Content, error) {
-	TelegraphURL := ""
+func (c *Content) Publish(source *Source) {
+	if c.Description == "" || len([]rune(c.Description)) <= config.PreviewText {
+		return
+	}
+	url, err := tgraph.PublishHtml(source.Title, c.Title, c.RawLink, c.Description)
+	if err == nil {
+		c.TelegraphURL = url
+	}
+}
 
+func getContentByFeedItem(source *Source, item *rss.Item) (Content, error) {
 	html := item.Content
 	if html == "" {
 		html = item.Summary
@@ -57,18 +65,13 @@ func getContentByFeedItem(source *Source, item *rss.Item, isFirstTime bool) (Con
 	html = strings.Replace(html, "<![CDATA[", "", -1)
 	html = strings.Replace(html, "]]>", "", -1)
 
-	if !isFirstTime && config.EnableTelegraph && len([]rune(html)) > config.PreviewText {
-		TelegraphURL = PublishItem(source, item, html)
-	}
-
 	var c = Content{
-		Title:        strings.Trim(item.Title, " "),
-		Description:  html, //replace all kinds of <br> tag
-		SourceID:     source.ID,
-		RawID:        strings.ToLower(item.ID),
-		HashID:       genHashID(source.Link, item.ID),
-		TelegraphURL: TelegraphURL,
-		RawLink:      item.Link,
+		Title:       strings.Trim(item.Title, " "),
+		Description: html, //replace all kinds of <br> tag
+		SourceID:    source.ID,
+		RawID:       strings.ToLower(item.ID),
+		HashID:      genHashID(source.Link, item.ID),
+		RawLink:     item.Link,
 	}
 
 	var torrentUrl string
@@ -105,8 +108,7 @@ func GenContentAndCheckByFeedItem(s *Source, item *rss.Item) (*Content, bool, er
 	err := db.Where("hash_id=?", hashID).First(&content).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		isBroaded = false
-		content, _ = getContentByFeedItem(s, item, false)
-		db.Create(&content)
+		content, _ = getContentByFeedItem(s, item)
 	} else {
 		isBroaded = true
 	}
@@ -117,12 +119,6 @@ func GenContentAndCheckByFeedItem(s *Source, item *rss.Item) (*Content, bool, er
 // DeleteContentsBySourceID delete contents in the db by sourceID
 func DeleteContentsBySourceID(sid uint) {
 	db.Delete(Content{}, "source_id = ?", sid)
-}
-
-// PublishItem publish item to telegraph
-func PublishItem(source *Source, item *rss.Item, html string) string {
-	url, _ := tgraph.PublishHtml(source.Title, item.Title, item.Link, html)
-	return url
 }
 
 func getTorrentInfoHash(torrentUrl string) (infoHash string) {
