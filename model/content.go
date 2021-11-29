@@ -2,15 +2,22 @@ package model
 
 import (
 	"errors"
+	"fmt"
+	"io"
+	"net/http"
 	"strings"
 
 	"github.com/SlyMarbo/rss"
 	"github.com/indes/flowerss-bot/config"
 	"github.com/indes/flowerss-bot/tgraph"
+	"github.com/indes/flowerss-bot/util"
 	"gorm.io/gorm"
+
+	parser "github.com/j-muller/go-torrent-parser"
 )
 
 const (
+	httpPrefix         = "http"
 	magnetPrefix       = "magnet:?xt=urn:btih:"
 	magnetLength       = 60
 	torrentContentType = "application/x-bittorrent"
@@ -58,16 +65,29 @@ func getContentByFeedItem(source *Source, item *rss.Item, isFirstTime bool) (Con
 		Title:        strings.Trim(item.Title, " "),
 		Description:  html, //replace all kinds of <br> tag
 		SourceID:     source.ID,
-		RawID:        item.ID,
+		RawID:        strings.ToLower(item.ID),
 		HashID:       genHashID(source.Link, item.ID),
 		TelegraphURL: TelegraphURL,
 		RawLink:      item.Link,
 	}
 
+	var torrentUrl string
 	for _, enclosure := range item.Enclosures {
 		if enclosure.Type == torrentContentType {
-			c.TorrentUrl = enclosure.URL
+			torrentUrl = enclosure.URL
 			break
+		}
+	}
+
+	if torrentUrl != "" {
+		if strings.HasPrefix(c.RawID, magnetPrefix) && len(c.RawID) == magnetLength {
+			c.TorrentUrl = torrentUrl
+		} else if strings.HasPrefix(torrentUrl, httpPrefix) {
+			infoHash := getTorrentInfoHash(c.TorrentUrl)
+			if infoHash != "" {
+				c.RawID = fmt.Sprintf("%s%s", magnetPrefix, infoHash)
+				c.TorrentUrl = torrentUrl
+			}
 		}
 	}
 
@@ -103,4 +123,26 @@ func DeleteContentsBySourceID(sid uint) {
 func PublishItem(source *Source, item *rss.Item, html string) string {
 	url, _ := tgraph.PublishHtml(source.Title, item.Title, item.Link, html)
 	return url
+}
+
+func getTorrentInfoHash(torrentUrl string) (infoHash string) {
+	req, err := http.NewRequest(http.MethodGet, torrentUrl, nil)
+	if err != nil {
+		return
+	}
+	resp, err := util.HttpClient.Do(req)
+	if err != nil {
+		return
+	}
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return
+	}
+	torrent, err := parser.Parse(resp.Body)
+	if err == nil {
+		infoHash = torrent.InfoHash
+	}
+	return
 }

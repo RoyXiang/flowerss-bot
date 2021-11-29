@@ -10,10 +10,12 @@ require (
 	github.com/cloudquery/sqlite v1.0.1
 	github.com/grokify/html-strip-tags-go v0.0.0-20200923094847-079d207a09f1
 	github.com/indes/telegraph-go v1.0.1
+	github.com/j-muller/go-torrent-parser v0.0.0-20211014072822-db02b4099054
 	github.com/magiconair/properties v1.8.5
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/testify v1.7.0
+	github.com/zeebo/bencode v1.0.0 // indirect
 	go.uber.org/atomic v1.8.0
 	go.uber.org/zap v1.17.0
 	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
