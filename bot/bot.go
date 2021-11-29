@@ -80,21 +80,22 @@ func setCommands() {
 	// 设置bot命令提示信息
 	commands := []tb.Command{
 		{"start", "开始使用"},
-		{"sub", "订阅rss源"},
-		{"list", "当前订阅的rss源"},
-		{"unsub", "退订rss源"},
-		{"unsuball", "退订所有rss源"},
+		{"list", "查看当前订阅的RSS源"},
+		{"sub", "[url] 订阅RSS源 (url 为可选)"},
+		{"unsub", "[url] 退订RSS源 (url 为可选)"},
+		{"unsub_all", "退订所有rss源"},
 
-		{"set", "设置rss订阅"},
-		{"setfeedtag", "设置rss订阅标签"},
-		{"setinterval", "设置rss订阅抓取间隔"},
+		{"set", "对RSS订阅进行设置"},
+		{"set_feed_tag", "[sub id] [tag1] [tag2] 设置RSS订阅的标签 (最多设置三个tag，以空格分隔)"},
+		{"set_interval", "[interval] [sub id] 设置RSS订阅的抓取间隔 (可同时对多个sub id进行设置，以空格分隔)"},
+		{"set_webhook", "[sub id] [webhook] 设置RSS订阅的webhook"},
 
-		{"export", "导出订阅为opml文件"},
-		{"import", "从opml文件导入订阅"},
+		{"export", "导出订阅为OPML文件"},
+		{"import", "从OPML文件导入订阅"},
 
-		{"check", "检查我的rss订阅状态"},
-		{"pauseall", "停止抓取订阅更新"},
-		{"activeall", "开启抓取订阅更新"},
+		{"check", "检查RSS订阅的当前状态"},
+		{"pause_all", "停止抓取订阅更新"},
+		{"active_all", "开启抓取订阅更新"},
 
 		{"help", "使用帮助"},
 		{"version", "bot版本"},
@@ -136,7 +137,7 @@ func setHandle() {
 
 	B.Handle("/unsub", unsubCmdCtr)
 
-	B.Handle("/unsuball", unsubAllCmdCtr)
+	B.Handle("/unsub_all", unsubAllCmdCtr)
 
 	B.Handle("/ping", pingCmdCtr)
 
@@ -144,17 +145,17 @@ func setHandle() {
 
 	B.Handle("/import", importCmdCtr)
 
-	B.Handle("/setfeedtag", setFeedTagCmdCtr)
+	B.Handle("/set_feed_tag", setFeedTagCmdCtr)
 
-	B.Handle("/setwebhook", setWebhookCmdCtr)
+	B.Handle("/set_webhook", setWebhookCmdCtr)
 
-	B.Handle("/setinterval", setIntervalCmdCtr)
+	B.Handle("/set_interval", setIntervalCmdCtr)
 
 	B.Handle("/check", checkCmdCtr)
 
-	B.Handle("/activeall", activeAllCmdCtr)
+	B.Handle("/active_all", activeAllCmdCtr)
 
-	B.Handle("/pauseall", pauseAllCmdCtr)
+	B.Handle("/pause_all", pauseAllCmdCtr)
 
 	B.Handle("/version", versionCmdCtr)
 
