@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"io"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/indes/flowerss-bot/config"
@@ -127,6 +129,16 @@ func BroadcastNews(source *model.Source, subs []*model.Subscribe, contents []*mo
 			u := &tb.User{
 				ID: int(sub.UserID),
 			}
+
+			history := &model.History{
+				Type:      model.TelegramMessage,
+				TriggerId: content.GetTriggerId(),
+				TargetId:  strconv.FormatInt(sub.UserID, 10),
+			}
+			if history.IsSaved() {
+				continue
+			}
+
 			o := &tb.SendOptions{
 				DisableWebPagePreview: config.DisableWebPagePreview,
 				ParseMode:             config.MessageMode,
@@ -163,6 +175,8 @@ func BroadcastNews(source *model.Source, subs []*model.Subscribe, contents []*mo
 						"error", err.Error(),
 					)
 				}
+			} else {
+				history.Save()
 			}
 		}
 	}
@@ -217,6 +231,15 @@ func SendWebhook(subs []*model.Subscribe, contents []*model.Content) {
 				continue
 			}
 
+			history := &model.History{
+				Type:      model.Webhook,
+				TriggerId: content.GetTriggerId(),
+				TargetId:  sub.Webhook,
+			}
+			if history.IsSaved() {
+				continue
+			}
+
 			if sub.Tag != "" {
 				tags := strings.Split(sub.Tag, " ")
 				body.Tags = make([]string, len(tags))
@@ -226,15 +249,35 @@ func SendWebhook(subs []*model.Subscribe, contents []*model.Content) {
 			} else {
 				body.Tags = make([]string, 0)
 			}
-			b := new(bytes.Buffer)
-			_ = json.NewEncoder(b).Encode(body)
-
-			req, _ := http.NewRequest("POST", sub.Webhook, b)
-			req.Header.Set("User-Agent", config.UserAgent)
-			req.Header.Set("Content-Type", "application/json; charset=utf-8")
-			_, _ = util.HttpClient.Do(req)
+			if sendBodyToWebhook(body, sub.Webhook) {
+				history.Save()
+			}
 		}
 	}
+}
+
+func sendBodyToWebhook(body webhookBody, webhook string) bool {
+	b := new(bytes.Buffer)
+	err := json.NewEncoder(b).Encode(body)
+	if err != nil {
+		return false
+	}
+
+	req, err := http.NewRequest(http.MethodPost, webhook, b)
+	if err != nil {
+		return false
+	}
+	req.Header.Set("User-Agent", config.UserAgent)
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+
+	resp, err := util.HttpClient.Do(req)
+	if err != nil {
+		return false
+	}
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
+	return resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices
 }
 
 // CheckAdmin check user is admin of group/channel

@@ -12,6 +12,7 @@ import (
 
 const (
 	magnetPrefix       = "magnet:?xt=urn:btih:"
+	magnetLength       = 60
 	torrentContentType = "application/x-bittorrent"
 )
 
@@ -26,6 +27,16 @@ type Content struct {
 	Description  string `gorm:"-"` //ignore to db
 	TelegraphURL string
 	EditTime
+}
+
+func (c *Content) GetTriggerId() string {
+	if c.TorrentUrl == "" {
+		return c.HashID
+	}
+	if strings.HasPrefix(c.RawID, magnetPrefix) && len(c.RawID) == magnetLength {
+		return c.RawID
+	}
+	return c.TorrentUrl
 }
 
 func getContentByFeedItem(source *Source, item *rss.Item, isFirstTime bool) (Content, error) {
@@ -68,15 +79,10 @@ func GenContentAndCheckByFeedItem(s *Source, item *rss.Item) (*Content, bool, er
 	var (
 		content   Content
 		isBroaded bool
-		err       error
 	)
 
-	if strings.HasPrefix(item.ID, magnetPrefix) {
-		err = db.Where("raw_id=?", item.ID).First(&content).Error
-	} else {
-		hashID := genHashID(s.Link, item.ID)
-		err = db.Where("hash_id=?", hashID).First(&content).Error
-	}
+	hashID := genHashID(s.Link, item.ID)
+	err := db.Where("hash_id=?", hashID).First(&content).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		isBroaded = false
 		content, _ = getContentByFeedItem(s, item, false)
