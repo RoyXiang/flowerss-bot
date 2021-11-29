@@ -86,7 +86,7 @@ func getContentByFeedItem(source *Source, item *rss.Item) (Content, error) {
 		if strings.HasPrefix(c.RawID, magnetPrefix) && len(c.RawID) == magnetLength {
 			c.TorrentUrl = torrentUrl
 		} else if strings.HasPrefix(torrentUrl, httpPrefix) {
-			infoHash := getTorrentInfoHash(c.TorrentUrl)
+			infoHash := getTorrentInfoHash(torrentUrl)
 			if infoHash != "" {
 				c.RawID = fmt.Sprintf("%s%s", magnetPrefix, infoHash)
 				c.TorrentUrl = torrentUrl
