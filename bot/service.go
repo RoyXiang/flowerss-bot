@@ -308,23 +308,15 @@ func HasAdminType(t tb.ChatType) bool {
 
 // GetMentionFromMessage get message mention
 func GetMentionFromMessage(m *tb.Message) (mention string) {
+	var entities []tb.MessageEntity
 	if m.Text != "" {
-		for _, entity := range m.Entities {
-			if entity.Type == tb.EntityMention {
-				if mention == "" {
-					mention = m.Text[entity.Offset : entity.Offset+entity.Length]
-					return
-				}
-			}
-		}
+		entities = m.Entities
 	} else {
-		for _, entity := range m.CaptionEntities {
-			if entity.Type == tb.EntityMention {
-				if mention == "" {
-					mention = m.Caption[entity.Offset : entity.Offset+entity.Length]
-					return
-				}
-			}
+		entities = m.CaptionEntities
+	}
+	for _, entity := range entities {
+		if entity.Type == tb.EntityMention {
+			return m.Text[entity.Offset : entity.Offset+entity.Length]
 		}
 	}
 	return
@@ -335,16 +327,18 @@ var relaxUrlMatcher = regexp.MustCompile(`^(https?://.*?)($| )`)
 // GetURLAndMentionFromMessage get URL and mention from message
 func GetURLAndMentionFromMessage(m *tb.Message) (url string, mention string) {
 	for _, entity := range m.Entities {
-		if entity.Type == tb.EntityMention {
+		switch entity.Type {
+		case tb.EntityMention:
 			if mention == "" {
 				mention = m.Text[entity.Offset : entity.Offset+entity.Length]
-
 			}
-		}
-
-		if entity.Type == tb.EntityURL {
+		case tb.EntityURL:
 			if url == "" {
 				url = m.Text[entity.Offset : entity.Offset+entity.Length]
+			}
+		case tb.EntityTextLink:
+			if url == "" {
+				url = entity.URL
 			}
 		}
 	}

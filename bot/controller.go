@@ -886,7 +886,7 @@ func textCtr(m *tb.Message) {
 	default:
 		var urls []string
 		for _, entity := range m.Entities {
-			if entity.Type != tb.EntityURL {
+			if entity.Type != tb.EntityURL && entity.Type != tb.EntityTextLink {
 				continue
 			}
 			url := entity.URL
