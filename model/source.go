@@ -60,16 +60,13 @@ func fetchFunc(url string) (resp *http.Response, err error) {
 	}
 	req.Header.Set("User-Agent", config.UserAgent)
 
-	resp, err = util.HttpClient.Do(req)
-
+	resp, err = util.SendRequest(req)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	var data []byte
 	if data, err = ioutil.ReadAll(resp.Body); err != nil {
-
 		return nil, err
 	}
 

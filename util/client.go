@@ -1,11 +1,12 @@
 package util
 
 import (
-	"go.uber.org/zap"
+	"io"
 	"net/http"
 	"time"
 
 	"github.com/indes/flowerss-bot/config"
+	"go.uber.org/zap"
 	"golang.org/x/net/proxy"
 )
 
@@ -28,4 +29,15 @@ func clientInit() {
 		}
 		httpTransport.Dial = dialer.Dial
 	}
+}
+
+func SendRequest(req *http.Request) (*http.Response, error) {
+	resp, err := HttpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
+	return resp, err
 }
