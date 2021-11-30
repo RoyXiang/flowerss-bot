@@ -36,10 +36,10 @@ func (s *Source) appendContents(items []*rss.Item) error {
 		}
 		contents = append(contents, c)
 	}
-	// 开启task更新
-	s.ErrorCount = 0
 	if !hasTorrent {
 		s.Content = contents
+		// 开启task更新
+		s.ErrorCount = 0
 	}
 	db.Save(&s)
 	return nil
@@ -106,7 +106,9 @@ func FindOrNewSourceByUrl(url string) (*Source, error) {
 				return items[i].Date.Before(items[j].Date)
 			})
 			db.Create(&source)
-			go source.appendContents(items)
+			go func() {
+				_ = source.appendContents(items)
+			}()
 			return &source, nil
 		}
 		return nil, err
