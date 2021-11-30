@@ -8,10 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-const (
-	MaxSubscribeTagLength = 250
-)
-
 type Subscribe struct {
 	ID                 uint  `gorm:"primary_key;AUTO_INCREMENT"`
 	UserID             int64 `gorm:"index"`
@@ -48,19 +44,6 @@ func RegistFeed(userID int64, sourceID uint) error {
 func GetSubscribeByUserIDAndSourceID(userID int64, sourceID uint) (*Subscribe, error) {
 	var sub Subscribe
 	db.Where("user_id=? and source_id=?", userID, sourceID).First(&sub)
-	if sub.UserID != int64(userID) {
-		return nil, errors.New("未订阅该RSS源")
-	}
-	return &sub, nil
-}
-
-func GetSubscribeByUserIDAndURL(userID int, url string) (*Subscribe, error) {
-	var sub Subscribe
-	source, err := GetSourceByUrl(url)
-	if err != nil {
-		return nil, err
-	}
-	db.Where("user_id=? and source_id=?", userID, source.ID).First(&sub)
 	if sub.UserID != int64(userID) {
 		return nil, errors.New("未订阅该RSS源")
 	}
@@ -131,31 +114,12 @@ func UnsubAllByUserID(userID int64) (success int, fail int, err error) {
 	return
 }
 
-func GetSubByUserIDAndURL(userID int64, url string) (*Subscribe, error) {
-	var sub Subscribe
-	source, err := GetSourceByUrl(url)
-	if err != nil {
-		return &sub, err
-	}
-	err = db.Where("user_id=? and source_id=?", userID, source.ID).First(&sub).Error
-	return &sub, err
-}
-
 func GetSubsByUserID(userID int64) ([]Subscribe, error) {
 	var subs []Subscribe
 
 	db.Where("user_id=?", userID).Find(&subs)
 
 	return subs, nil
-}
-
-func UnsubByUserIDAndSourceURL(userID int64, url string) error {
-	source, err := GetSourceByUrl(url)
-	if err != nil {
-		return err
-	}
-	err = UnsubByUserIDAndSource(userID, source)
-	return err
 }
 
 func GetSubscribeByID(id int) (*Subscribe, error) {

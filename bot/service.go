@@ -3,6 +3,7 @@ package bot
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"io"
@@ -19,83 +20,49 @@ import (
 	tb "gopkg.in/tucnak/telebot.v2"
 )
 
-// FeedForChannelRegister register feed for channel
-func FeedForChannelRegister(m *tb.Message, url string, channelMention string) {
-	msg, err := B.Send(m.Chat, "处理中...")
-	channelChat, err := B.ChatByID(channelMention)
-	adminList, err := B.AdminsOf(channelChat)
-
-	senderIsAdmin := false
-	botIsAdmin := false
-	for _, admin := range adminList {
-		if m.Sender.ID == admin.User.ID {
-			senderIsAdmin = true
-		}
-		if B.Me.ID == admin.User.ID {
-			botIsAdmin = true
+func getUserHtml(user, chat *tb.Chat, defaultText string) (text string) {
+	if user.ID != chat.ID {
+		if user.ID > 0 {
+			text = fmt.Sprintf("<a href=\"tg://user?id=%d\">%s</a> ", user.ID, html.EscapeString(user.Title))
+		} else {
+			text = fmt.Sprintf("<a href=\"https://t.me/%s\">%s</a> ", user.Username, html.EscapeString(user.Title))
 		}
 	}
-
-	if !botIsAdmin {
-		msg, _ = B.Edit(msg, fmt.Sprintf("请先将bot添加为频道管理员"))
-		return
+	if text != "" {
+		if user.Type == tb.ChatChannel || user.Type == tb.ChatChannelPrivate {
+			text = "频道 " + text
+		} else if user.Type == tb.ChatGroup || user.Type == tb.ChatSuperGroup {
+			text = "群组 " + text
+		}
 	}
-
-	if !senderIsAdmin {
-		msg, _ = B.Edit(msg, fmt.Sprintf("非频道管理员无法执行此操作"))
-		return
+	if text == "" {
+		text = defaultText
 	}
-
-	source, err := model.FindOrNewSourceByUrl(url)
-
-	if err != nil {
-		msg, _ = B.Edit(msg, fmt.Sprintf("%s，订阅失败", err))
-		return
-	}
-
-	err = model.RegistFeed(channelChat.ID, source.ID)
-	zap.S().Infof("%d for %d subscribe [%d]%s %s", m.Chat.ID, channelChat.ID, source.ID, source.Title, source.Link)
-
-	if err == nil {
-		newText := fmt.Sprintf(
-			"频道 <a href=\"https://t.me/%s\">%s</a> 订阅 <a href=\"%s\">%s</a> 成功",
-			channelChat.Username,
-			html.EscapeString(channelChat.Title),
-			source.Link,
-			html.EscapeString(source.Title),
-		)
-		_, err = B.Edit(msg, newText,
-			&tb.SendOptions{
-				DisableWebPagePreview: true,
-				ParseMode:             tb.ModeHTML,
-			})
-	} else {
-		_, _ = B.Edit(msg, "订阅失败")
-	}
+	return
 }
 
-func registFeed(chat *tb.Chat, url string) {
+func registerFeed(chat, user *tb.Chat, url string) {
 	msg, err := B.Send(chat, "处理中...")
 
 	source, err := model.FindOrNewSourceByUrl(url)
-
 	if err != nil {
-		msg, _ = B.Edit(msg, fmt.Sprintf("%s，订阅失败", err))
+		_, _ = B.Edit(msg, fmt.Sprintf("%s，订阅失败", err))
 		return
 	}
 
-	err = model.RegistFeed(chat.ID, source.ID)
-	zap.S().Infof("%d subscribe [%d]%s %s", chat.ID, source.ID, source.Title, source.Link)
-
-	if err == nil {
-		_, _ = B.Edit(msg, fmt.Sprintf("<a href=\"%s\">%s</a> 订阅成功", source.Link, html.EscapeString(source.Title)),
-			&tb.SendOptions{
-				DisableWebPagePreview: true,
-				ParseMode:             tb.ModeHTML,
-			})
-	} else {
+	err = model.RegistFeed(user.ID, source.ID)
+	zap.S().Infof("%d for %d subscribe [%d]%s %s", chat.ID, user.ID, source.ID, source.Title, source.Link)
+	if err != nil {
 		_, _ = B.Edit(msg, "订阅失败")
+		return
 	}
+
+	newText := getUserHtml(user, chat, "")
+	newText += fmt.Sprintf("订阅 <a href=\"%s\">%s</a> 成功", source.Link, source.Title)
+	_, _ = B.Edit(msg, newText, &tb.SendOptions{
+		DisableWebPagePreview: true,
+		ParseMode:             tb.ModeHTML,
+	})
 }
 
 //SendError send error user
@@ -282,35 +249,22 @@ func sendBodyToWebhook(body webhookBody, webhook string) bool {
 
 // CheckAdmin check user is admin of group/channel
 func CheckAdmin(upd *tb.Update) bool {
-
+	var msg *tb.Message
 	if upd.Message != nil {
-		if HasAdminType(upd.Message.Chat.Type) {
-			adminList, _ := B.AdminsOf(upd.Message.Chat)
-			for _, admin := range adminList {
-				if admin.User.ID == upd.Message.Sender.ID {
-					return true
-				}
-			}
-
-			return false
-		}
-
-		return true
+		msg = upd.Message
 	} else if upd.Callback != nil {
-		if HasAdminType(upd.Callback.Message.Chat.Type) {
-			adminList, _ := B.AdminsOf(upd.Callback.Message.Chat)
-			for _, admin := range adminList {
-				if admin.User.ID == upd.Callback.Sender.ID {
-					return true
-				}
-			}
-
-			return false
-		}
-
+		msg = upd.Callback.Message
+	} else {
+		return false
+	}
+	if !HasAdminType(msg.Chat.Type) {
 		return true
 	}
-	return false
+	err := isAdminOfChat(msg.Sender.ID, msg.Chat)
+	if errors.Is(err, ErrBotNotChannelAdmin) {
+		return true
+	}
+	return err == nil
 }
 
 // IsUserAllowed check user is allowed to use bot
@@ -318,19 +272,17 @@ func isUserAllowed(upd *tb.Update) bool {
 	if upd == nil {
 		return false
 	}
+	if len(config.AllowUsers) == 0 {
+		return true
+	}
 
 	var userID int64
-
 	if upd.Message != nil {
 		userID = int64(upd.Message.Sender.ID)
 	} else if upd.Callback != nil {
 		userID = int64(upd.Callback.Sender.ID)
 	} else {
 		return false
-	}
-
-	if len(config.AllowUsers) == 0 {
-		return true
 	}
 
 	for _, allowUserID := range config.AllowUsers {
@@ -341,40 +293,6 @@ func isUserAllowed(upd *tb.Update) bool {
 
 	zap.S().Infow("user not allowed", "userID", userID)
 	return false
-}
-
-func userIsAdminOfGroup(userID int, groupChat *tb.Chat) (isAdmin bool) {
-
-	adminList, err := B.AdminsOf(groupChat)
-	isAdmin = false
-
-	if err != nil {
-		return
-	}
-
-	for _, admin := range adminList {
-		if userID == admin.User.ID {
-			isAdmin = true
-		}
-	}
-	return
-}
-
-// UserIsAdminChannel check if the user is the administrator of channel
-func UserIsAdminChannel(userID int, channelChat *tb.Chat) (isAdmin bool) {
-	adminList, err := B.AdminsOf(channelChat)
-	isAdmin = false
-
-	if err != nil {
-		return
-	}
-
-	for _, admin := range adminList {
-		if userID == admin.User.ID {
-			isAdmin = true
-		}
-	}
-	return
 }
 
 // HasAdminType check if the message is sent in the group/channel environment

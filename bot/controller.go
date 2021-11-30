@@ -32,26 +32,16 @@ var (
 )
 
 func toggleCtrlButtons(c *tb.Callback, action string) {
-
-	if (c.Message.Chat.Type == tb.ChatGroup || c.Message.Chat.Type == tb.ChatSuperGroup) &&
-		!userIsAdminOfGroup(c.Sender.ID, c.Message.Chat) {
-		// check admin
+	data := strings.Split(c.Data, ":")
+	if len(data) != 2 {
+		_, _ = B.Edit(c.Message, "内部错误：回调数据不正确")
 		return
 	}
 
-	data := strings.Split(c.Data, ":")
-	subscriberID, _ := strconv.Atoi(data[0])
-	// 如果订阅者与按钮点击者id不一致，需要验证管理员权限
-	if subscriberID != c.Sender.ID {
-		channelChat, err := B.ChatByID(fmt.Sprintf("%d", subscriberID))
-
-		if err != nil {
-			return
-		}
-
-		if !UserIsAdminChannel(c.Sender.ID, channelChat) {
-			return
-		}
+	_, err := getMentionedUser(c.Message, data[0], c.Sender)
+	if err != nil {
+		_, _ = B.Edit(c.Message, err.Error())
+		return
 	}
 
 	msg := strings.Split(c.Message.Text, "\n")
@@ -112,73 +102,27 @@ func startCmdCtr(m *tb.Message) {
 }
 
 func subCmdCtr(m *tb.Message) {
-
 	url, mention := GetURLAndMentionFromMessage(m)
-
-	if mention == "" {
-		if url != "" {
-			registFeed(m.Chat, url)
-		} else {
-			_, err := B.Send(m.Chat, "请回复RSS URL", &tb.ReplyMarkup{ForceReply: true})
-			if err == nil {
-				UserState[m.Chat.ID] = fsm.Sub
-			}
-		}
-	} else {
-		if url != "" {
-			FeedForChannelRegister(m, url, mention)
-		} else {
-			_, _ = B.Send(m.Chat, "频道订阅请使用' /sub @ChannelID URL ' 命令")
-		}
+	user, err := getMentionedUser(m, mention, nil)
+	if err != nil {
+		_, _ = B.Send(m.Chat, err.Error())
+		return
 	}
-
+	registerFeed(m.Chat, user, url)
 }
 
 func exportCmdCtr(m *tb.Message) {
-
 	mention := GetMentionFromMessage(m)
-	var sourceList []model.Source
-	var err error
-	if mention == "" {
-
-		sourceList, err = model.GetSourcesByUserID(m.Chat.ID)
-		if err != nil {
-			zap.S().Warnf(err.Error())
-			_, _ = B.Send(m.Chat, fmt.Sprintf("导出失败"))
-			return
-		}
-	} else {
-		channelChat, err := B.ChatByID(mention)
-
-		if err != nil {
-			_, _ = B.Send(m.Chat, "error")
-			return
-		}
-
-		adminList, err := B.AdminsOf(channelChat)
-		if err != nil {
-			_, _ = B.Send(m.Chat, "error")
-			return
-		}
-
-		senderIsAdmin := false
-		for _, admin := range adminList {
-			if m.Sender.ID == admin.User.ID {
-				senderIsAdmin = true
-			}
-		}
-
-		if !senderIsAdmin {
-			_, _ = B.Send(m.Chat, fmt.Sprintf("非频道管理员无法执行此操作"))
-			return
-		}
-
-		sourceList, err = model.GetSourcesByUserID(channelChat.ID)
-		if err != nil {
-			zap.S().Errorf(err.Error())
-			_, _ = B.Send(m.Chat, fmt.Sprintf("导出失败"))
-			return
-		}
+	user, err := getMentionedUser(m, mention, nil)
+	if err != nil {
+		_, _ = B.Send(m.Chat, err.Error())
+		return
+	}
+	sourceList, err := model.GetSourcesByUserID(user.ID)
+	if err != nil {
+		zap.S().Errorf(err.Error())
+		_, _ = B.Send(m.Chat, fmt.Sprintf("导出失败"))
+		return
 	}
 
 	if len(sourceList) == 0 {
@@ -200,73 +144,34 @@ func exportCmdCtr(m *tb.Message) {
 		_, _ = B.Send(m.Chat, fmt.Sprintf("导出失败"))
 		zap.S().Errorf("send opml file failed, err:%+v", err)
 	}
-
 }
 
 func listCmdCtr(m *tb.Message) {
 	mention := GetMentionFromMessage(m)
+	chat, err := getMentionedUser(m, mention, nil)
+	if err != nil {
+		_, _ = B.Send(m.Chat, err.Error())
+		return
+	}
 
-	var rspMessage string
-	if mention != "" {
-		// channel feed list
-		channelChat, err := B.ChatByID(mention)
-		if err != nil {
-			_, _ = B.Send(m.Chat, "error")
-			return
-		}
+	user, err := model.FindOrCreateUserByTelegramID(chat.ID)
+	if err != nil {
+		_, _ = B.Send(m.Chat, "内部错误：无法找到对应的用户")
+		return
+	}
+	subSourceMap, err := user.GetSubSourceMap()
+	if err != nil {
+		_, _ = B.Send(m.Chat, "内部错误：无法查询用户订阅列表")
+		return
+	}
 
-		if !checkPermitOfChat(int64(m.Sender.ID), channelChat) {
-			B.Send(m.Chat, fmt.Sprintf("非频道管理员无法执行此操作"))
-			return
-		}
-
-		user, err := model.FindOrCreateUserByTelegramID(channelChat.ID)
-		if err != nil {
-			B.Send(m.Chat, fmt.Sprintf("内部错误 list@1"))
-			return
-		}
-
-		subSourceMap, err := user.GetSubSourceMap()
-		if err != nil {
-			B.Send(m.Chat, fmt.Sprintf("内部错误 list@2"))
-			return
-		}
-
-		sources, _ := model.GetSourcesByUserID(channelChat.ID)
-		if len(sources) == 0 {
-			rspMessage = fmt.Sprintf("频道 <a href=\"https://t.me/%s\">%s</a> 订阅列表为空", channelChat.Username, html.EscapeString(channelChat.Title))
-		} else {
-			rspMessage = fmt.Sprintf("频道 <a href=\"https://t.me/%s\">%s</a> 订阅列表：\n", channelChat.Username, html.EscapeString(channelChat.Title))
-			for sub, source := range subSourceMap {
-				rspMessage = rspMessage + fmt.Sprintf("[%d] <a href=\"%s\">%s</a>\n", sub.ID, source.Link, html.EscapeString(source.Title))
-			}
-		}
+	rspMessage := getUserHtml(chat, m.Chat, "当前")
+	if len(subSourceMap) == 0 {
+		rspMessage += "订阅列表为空"
 	} else {
-		// private chat or group
-		if m.Chat.Type != tb.ChatPrivate && !checkPermitOfChat(int64(m.Sender.ID), m.Chat) {
-			// 无权限
-			return
-		}
-
-		user, err := model.FindOrCreateUserByTelegramID(m.Chat.ID)
-		if err != nil {
-			B.Send(m.Chat, fmt.Sprintf("内部错误 list@1"))
-			return
-		}
-
-		subSourceMap, err := user.GetSubSourceMap()
-		if err != nil {
-			B.Send(m.Chat, fmt.Sprintf("内部错误 list@2"))
-			return
-		}
-
-		if len(subSourceMap) == 0 {
-			rspMessage = "订阅列表为空"
-		} else {
-			rspMessage = "当前订阅列表：\n"
-			for sub, source := range subSourceMap {
-				rspMessage = rspMessage + fmt.Sprintf("[%d] <a href=\"%s\">%s</a>\n", sub.ID, source.Link, html.EscapeString(source.Title))
-			}
+		rspMessage += "订阅列表：\n"
+		for sub, source := range subSourceMap {
+			rspMessage += fmt.Sprintf("[%d] <a href=\"%s\">%s</a>\n", sub.ID, source.Link, html.EscapeString(source.Title))
 		}
 	}
 	_, _ = B.Send(m.Chat, rspMessage, &tb.SendOptions{
@@ -277,122 +182,61 @@ func listCmdCtr(m *tb.Message) {
 
 func checkCmdCtr(m *tb.Message) {
 	mention := GetMentionFromMessage(m)
-	if mention != "" {
-		channelChat, err := B.ChatByID(mention)
-		if err != nil {
-			_, _ = B.Send(m.Chat, "error")
-			return
-		}
-		adminList, err := B.AdminsOf(channelChat)
-		if err != nil {
-			_, _ = B.Send(m.Chat, "error")
-			return
-		}
-
-		senderIsAdmin := false
-		for _, admin := range adminList {
-			if m.Sender.ID == admin.User.ID {
-				senderIsAdmin = true
-			}
-		}
-
-		if !senderIsAdmin {
-			_, _ = B.Send(m.Chat, fmt.Sprintf("非频道管理员无法执行此操作"))
-			return
-		}
-
-		sources, _ := model.GetErrorSourcesByUserID(channelChat.ID)
-		message := fmt.Sprintf("频道 <a href=\"https://t.me/%s\">%s</a> 失效订阅的列表：\n", channelChat.Username, html.EscapeString(channelChat.Title))
-		if len(sources) == 0 {
-			message = fmt.Sprintf("频道 <a href=\"https://t.me/%s\">%s</a> 所有订阅正常", channelChat.Username, html.EscapeString(channelChat.Title))
-		} else {
-			for _, source := range sources {
-				message = message + fmt.Sprintf("[%d] <a href=\"%s\">%s</a>\n", source.ID, source.Link, html.EscapeString(source.Title))
-			}
-		}
-
-		_, _ = B.Send(m.Chat, message, &tb.SendOptions{
-			DisableWebPagePreview: true,
-			ParseMode:             tb.ModeHTML,
-		})
-
-	} else {
-		sources, _ := model.GetErrorSourcesByUserID(m.Chat.ID)
-		message := "失效订阅的列表：\n"
-		if len(sources) == 0 {
-			message = "所有订阅正常"
-		} else {
-			for _, source := range sources {
-				message = message + fmt.Sprintf("[%d] <a href=\"%s\">%s</a>\n", source.ID, source.Link, html.EscapeString(source.Title))
-			}
-		}
-		_, _ = B.Send(m.Chat, message, &tb.SendOptions{
-			DisableWebPagePreview: true,
-			ParseMode:             tb.ModeHTML,
-		})
+	user, err := getMentionedUser(m, mention, nil)
+	if err != nil {
+		_, _ = B.Send(m.Chat, err.Error())
+		return
 	}
-
+	sources, _ := model.GetErrorSourcesByUserID(user.ID)
+	message := getUserHtml(user, m.Chat, "")
+	if len(sources) > 0 {
+		message += "失效订阅的列表：\n"
+		for _, source := range sources {
+			message += fmt.Sprintf("[%d] <a href=\"%s\">%s</a>\n", source.ID, source.Link, html.EscapeString(source.Title))
+		}
+	} else {
+		message += "所有订阅正常"
+	}
+	_, _ = B.Send(m.Chat, message, &tb.SendOptions{
+		DisableWebPagePreview: true,
+		ParseMode:             tb.ModeHTML,
+	})
 }
 
 func setCmdCtr(m *tb.Message) {
-
 	mention := GetMentionFromMessage(m)
-	var sources []model.Source
-	var ownerID int64
-	// 获取订阅列表
-	if mention == "" {
-		sources, _ = model.GetSourcesByUserID(m.Chat.ID)
-		ownerID = int64(m.Chat.ID)
-		if len(sources) <= 0 {
-			_, _ = B.Send(m.Chat, "当前没有订阅源")
-			return
-		}
+	user, err := getMentionedUser(m, mention, nil)
+	if err != nil {
+		_, _ = B.Send(m.Chat, err.Error())
+		return
+	}
 
-	} else {
-
-		channelChat, err := B.ChatByID(mention)
-
-		if err != nil {
-			_, _ = B.Send(m.Chat, "获取Channel信息错误。")
-			return
-		}
-
-		if UserIsAdminChannel(m.Sender.ID, channelChat) {
-			sources, _ = model.GetSourcesByUserID(channelChat.ID)
-
-			if len(sources) <= 0 {
-				_, _ = B.Send(m.Chat, "Channel没有订阅源。")
-				return
-			}
-			ownerID = channelChat.ID
-
-		} else {
-			_, _ = B.Send(m.Chat, "非Channel管理员无法执行此操作。")
-			return
-		}
-
+	sources, err := model.GetSourcesByUserID(user.ID)
+	if len(sources) <= 0 {
+		text := fmt.Sprintf("%s没有订阅源", getUserHtml(user, m.Chat, "当前"))
+		_, _ = B.Send(m.Chat, text, &tb.SendOptions{
+			DisableWebPagePreview: true,
+			ParseMode:             tb.ModeHTML,
+		})
+		return
 	}
 
 	var replyButton []tb.ReplyButton
-	replyKeys := [][]tb.ReplyButton{}
-	setFeedItemBtns := [][]tb.InlineButton{}
+	var replyKeys [][]tb.ReplyButton
+	var setFeedItemBtns [][]tb.InlineButton
 
 	// 配置按钮
 	for _, source := range sources {
 		// 添加按钮
 		text := fmt.Sprintf("%s %s", source.Title, source.Link)
-		replyButton = []tb.ReplyButton{
-			tb.ReplyButton{Text: text},
-		}
+		replyButton = []tb.ReplyButton{{Text: text}}
 		replyKeys = append(replyKeys, replyButton)
 
-		setFeedItemBtns = append(setFeedItemBtns, []tb.InlineButton{
-			tb.InlineButton{
-				Unique: "set_feed_item_btn",
-				Text:   fmt.Sprintf("[%d] %s", source.ID, source.Title),
-				Data:   fmt.Sprintf("%d:%d", ownerID, source.ID),
-			},
-		})
+		setFeedItemBtns = append(setFeedItemBtns, []tb.InlineButton{{
+			Unique: "set_feed_item_btn",
+			Text:   fmt.Sprintf("[%d] %s", source.ID, source.Title),
+			Data:   fmt.Sprintf("%d:%d", user.ID, source.ID),
+		}})
 	}
 
 	_, _ = B.Send(m.Chat, "请选择你要设置的源", &tb.ReplyMarkup{
@@ -401,39 +245,26 @@ func setCmdCtr(m *tb.Message) {
 }
 
 func setFeedItemBtnCtr(c *tb.Callback) {
-
-	if (c.Message.Chat.Type == tb.ChatGroup || c.Message.Chat.Type == tb.ChatSuperGroup) &&
-		!userIsAdminOfGroup(c.Sender.ID, c.Message.Chat) {
+	data := strings.Split(c.Data, ":")
+	if len(data) != 2 {
+		_, _ = B.Edit(c.Message, "内部错误：回调数据不正确")
 		return
 	}
 
-	data := strings.Split(c.Data, ":")
-	subscriberID, _ := strconv.Atoi(data[0])
-
-	// 如果订阅者与按钮点击者id不一致，需要验证管理员权限
-
-	if subscriberID != c.Sender.ID {
-		channelChat, err := B.ChatByID(fmt.Sprintf("%d", subscriberID))
-
-		if err != nil {
-			return
-		}
-
-		if !UserIsAdminChannel(c.Sender.ID, channelChat) {
-			return
-		}
+	user, err := getMentionedUser(c.Message, data[0], c.Sender)
+	if err != nil {
+		_, _ = B.Edit(c.Message, err.Error())
+		return
 	}
 
 	sourceID, _ := strconv.Atoi(data[1])
-
 	source, err := model.GetSourceById(uint(sourceID))
-
 	if err != nil {
 		_, _ = B.Edit(c.Message, "找不到该订阅源，错误代码01。")
 		return
 	}
 
-	sub, err := model.GetSubscribeByUserIDAndSourceID(int64(subscriberID), source.ID)
+	sub, err := model.GetSubscribeByUserIDAndSourceID(user.ID, source.ID)
 	if err != nil {
 		_, _ = B.Edit(c.Message, "用户未订阅该rss，错误代码02。")
 		return
@@ -456,16 +287,20 @@ func setFeedItemBtnCtr(c *tb.Callback) {
 }
 
 func setSubTagBtnCtr(c *tb.Callback) {
-
-	// 权限验证
-	if !feedSetAuth(c) {
+	data := strings.Split(c.Data, ":")
+	if len(data) != 2 {
+		_, _ = B.Edit(c.Message, "内部错误：回调数据不正确")
 		return
 	}
-	data := strings.Split(c.Data, ":")
-	ownID, _ := strconv.Atoi(data[0])
-	sourceID, _ := strconv.Atoi(data[1])
 
-	sub, err := model.GetSubscribeByUserIDAndSourceID(int64(ownID), uint(sourceID))
+	user, err := getMentionedUser(c.Message, data[0], c.Sender)
+	if err != nil {
+		_, _ = B.Edit(c.Message, err.Error())
+		return
+	}
+
+	sourceID, _ := strconv.Atoi(data[1])
+	sub, err := model.GetSubscribeByUserIDAndSourceID(user.ID, uint(sourceID))
 	if err != nil {
 		_, _ = B.Send(
 			c.Message.Chat,
@@ -548,197 +383,124 @@ func setToggleUpdateBtnCtr(c *tb.Callback) {
 }
 
 func unsubCmdCtr(m *tb.Message) {
-
 	url, mention := GetURLAndMentionFromMessage(m)
-
-	if mention == "" {
-		if url != "" {
-			//Unsub by url
-			source, _ := model.GetSourceByUrl(url)
-			if source == nil {
-				_, _ = B.Send(m.Chat, "未订阅该RSS源")
-			} else {
-				err := model.UnsubByUserIDAndSource(m.Chat.ID, source)
-				if err == nil {
-					_, _ = B.Send(
-						m.Chat,
-						fmt.Sprintf("<a href=\"%s\">%s</a> 退订成功！", source.Link, html.EscapeString(source.Title)),
-						&tb.SendOptions{
-							DisableWebPagePreview: true,
-							ParseMode:             tb.ModeHTML,
-						},
-					)
-					zap.S().Infof("%d unsubscribe [%d]%s %s", m.Chat.ID, source.ID, source.Title, source.Link)
-				} else {
-					_, err = B.Send(m.Chat, err.Error())
-				}
-			}
-		} else {
-			//Unsub by button
-
-			subs, err := model.GetSubsByUserID(m.Chat.ID)
-
-			if err != nil {
-				errorCtr(m, "Bot错误，请联系管理员！错误代码01")
-				return
-			}
-
-			if len(subs) > 0 {
-				unsubFeedItemBtns := [][]tb.InlineButton{}
-
-				for _, sub := range subs {
-
-					source, err := model.GetSourceById(sub.SourceID)
-					if err != nil {
-						errorCtr(m, "Bot错误，请联系管理员！错误代码02")
-						return
-					}
-
-					unsubFeedItemBtns = append(unsubFeedItemBtns, []tb.InlineButton{
-						tb.InlineButton{
-							Unique: "unsub_feed_item_btn",
-							Text:   fmt.Sprintf("[%d] %s", sub.SourceID, source.Title),
-							Data:   fmt.Sprintf("%d:%d:%d", sub.UserID, sub.ID, source.ID),
-						},
-					})
-				}
-
-				_, _ = B.Send(m.Chat, "请选择你要退订的源", &tb.ReplyMarkup{
-					InlineKeyboard: unsubFeedItemBtns,
-				})
-			} else {
-				_, _ = B.Send(m.Chat, "当前没有订阅源")
-			}
-		}
-	} else {
-		if url != "" {
-			channelChat, err := B.ChatByID(mention)
-			if err != nil {
-				_, _ = B.Send(m.Chat, "error")
-				return
-			}
-			adminList, err := B.AdminsOf(channelChat)
-			if err != nil {
-				_, _ = B.Send(m.Chat, "error")
-				return
-			}
-
-			senderIsAdmin := false
-			for _, admin := range adminList {
-				if m.Sender.ID == admin.User.ID {
-					senderIsAdmin = true
-				}
-			}
-
-			if !senderIsAdmin {
-				_, _ = B.Send(m.Chat, fmt.Sprintf("非频道管理员无法执行此操作"))
-				return
-			}
-
-			source, _ := model.GetSourceByUrl(url)
-			sub, err := model.GetSubByUserIDAndURL(channelChat.ID, url)
-
-			if err != nil {
-				if err.Error() == "record not found" {
-					_, _ = B.Send(
-						m.Chat,
-						fmt.Sprintf("频道 <a href=\"https://t.me/%s\">%s</a> 未订阅该RSS源", channelChat.Username, html.EscapeString(channelChat.Title)),
-						&tb.SendOptions{
-							DisableWebPagePreview: true,
-							ParseMode:             tb.ModeHTML,
-						},
-					)
-
-				} else {
-					_, _ = B.Send(m.Chat, "退订失败")
-				}
-				return
-
-			}
-
-			err = sub.Unsub()
-			if err == nil {
-				_, _ = B.Send(
-					m.Chat,
-					fmt.Sprintf("频道 <a href=\"https://t.me/%s\">%s</a> 退订 <a href=\"%s\">%s</a> 成功", channelChat.Username, html.EscapeString(channelChat.Title), source.Link, html.EscapeString(source.Title)),
-					&tb.SendOptions{
-						DisableWebPagePreview: true,
-						ParseMode:             tb.ModeHTML,
-					},
-				)
-				zap.S().Infof("%d for [%d]%s unsubscribe %s", m.Chat.ID, source.ID, source.Title, source.Link)
-			} else {
-				_, err = B.Send(m.Chat, err.Error())
-			}
-			return
-
-		}
-		_, _ = B.Send(m.Chat, "频道退订请使用' /unsub @ChannelID URL ' 命令")
-	}
-
-}
-
-func unsubFeedItemBtnCtr(c *tb.Callback) {
-
-	if (c.Message.Chat.Type == tb.ChatGroup || c.Message.Chat.Type == tb.ChatSuperGroup) &&
-		!userIsAdminOfGroup(c.Sender.ID, c.Message.Chat) {
-		// check admin
+	user, err := getMentionedUser(m, mention, nil)
+	if err != nil {
+		_, _ = B.Send(m.Chat, err.Error())
 		return
 	}
 
-	data := strings.Split(c.Data, ":")
-	if len(data) == 3 {
-		userID, _ := strconv.Atoi(data[0])
-		subID, _ := strconv.Atoi(data[1])
-		sourceID, _ := strconv.Atoi(data[2])
-		source, _ := model.GetSourceById(uint(sourceID))
-
-		rtnMsg := fmt.Sprintf("[%d] <a href=\"%s\">%s</a> 退订成功", sourceID, source.Link, source.Title)
-
-		err := model.UnsubByUserIDAndSubID(int64(userID), uint(subID))
-
-		if err == nil {
-			_, _ = B.Edit(
-				c.Message,
-				rtnMsg,
-				&tb.SendOptions{
-					ParseMode: tb.ModeHTML,
-				},
-			)
+	if url != "" {
+		source, err := model.GetSourceByUrl(url)
+		if err != nil {
+			_, _ = B.Send(m.Chat, "未订阅该RSS源")
 			return
 		}
+		err = model.UnsubByUserIDAndSource(user.ID, source)
+		if err != nil {
+			_, _ = B.Send(m.Chat, fmt.Sprintf("退订失败：%s", err.Error()))
+			return
+		}
+		text := getUserHtml(user, m.Chat, "")
+		text += fmt.Sprintf("退订 <a href=\"%s\">%s</a> 成功！", source.Link, html.EscapeString(source.Title))
+		_, _ = B.Send(m.Chat, text, &tb.SendOptions{
+			DisableWebPagePreview: true,
+			ParseMode:             tb.ModeHTML,
+		})
+		zap.S().Infof("%d unsubscribe [%d]%s %s", user.ID, source.ID, source.Title, source.Link)
+	} else {
+		subs, err := model.GetSubsByUserID(user.ID)
+		if err != nil {
+			_, _ = B.Send(m.Chat, "内部错误：查询订阅列表失败")
+			return
+		}
+
+		var unsubFeedItemBtns [][]tb.InlineButton
+		for _, sub := range subs {
+			source, err := model.GetSourceById(sub.SourceID)
+			if err != nil {
+				continue
+			}
+
+			unsubFeedItemBtns = append(unsubFeedItemBtns, []tb.InlineButton{{
+				Unique: "unsub_feed_item_btn",
+				Text:   fmt.Sprintf("[%d] %s", sub.SourceID, source.Title),
+				Data:   fmt.Sprintf("%d:%d:%d", sub.UserID, sub.ID, source.ID),
+			}})
+		}
+		if len(unsubFeedItemBtns) <= 0 {
+			_, _ = B.Send(m.Chat, "订阅列表为空")
+			return
+		}
+
+		_, _ = B.Send(m.Chat, "请选择你要退订的源", &tb.ReplyMarkup{
+			InlineKeyboard: unsubFeedItemBtns,
+		})
 	}
-	_, _ = B.Edit(c.Message, "退订错误！")
+}
+
+func unsubFeedItemBtnCtr(c *tb.Callback) {
+	data := strings.Split(c.Data, ":")
+	if len(data) != 3 {
+		_, _ = B.Edit(c.Message, "内部错误：回调数据不正确")
+		return
+	}
+	user, err := getMentionedUser(c.Message, data[0], c.Sender)
+	if err != nil {
+		_, _ = B.Edit(c.Message, err.Error())
+		return
+	}
+	sourceID, _ := strconv.Atoi(data[2])
+	source, err := model.GetSourceById(uint(sourceID))
+	if err != nil {
+		_, _ = B.Edit(c.Message, "未订阅该RSS源")
+		return
+	}
+	subID, _ := strconv.Atoi(data[1])
+	err = model.UnsubByUserIDAndSubID(user.ID, uint(subID))
+	if err != nil {
+		_, _ = B.Edit(c.Message, fmt.Sprintf("退订失败：%s", err.Error()))
+		return
+	}
+	text := getUserHtml(user, c.Message.Chat, "")
+	text += fmt.Sprintf("退订 <a href=\"%s\">%s</a> 成功！", source.Link, html.EscapeString(source.Title))
+	_, _ = B.Edit(c.Message, text, &tb.SendOptions{
+		DisableWebPagePreview: true,
+		ParseMode:             tb.ModeHTML,
+	})
+	zap.S().Infof("%d unsubscribe [%d]%s %s", user.ID, source.ID, source.Title, source.Link)
 }
 
 func unsubAllCmdCtr(m *tb.Message) {
 	mention := GetMentionFromMessage(m)
-	confirmKeys := [][]tb.InlineButton{}
+	user, err := getMentionedUser(m, mention, nil)
+	if err != nil {
+		_, _ = B.Send(m.Chat, err.Error())
+		return
+	}
+
+	var confirmKeys [][]tb.InlineButton
 	confirmKeys = append(confirmKeys, []tb.InlineButton{
-		tb.InlineButton{
+		{
 			Unique: "unsub_all_confirm_btn",
 			Text:   "确认",
+			Data:   strconv.FormatInt(user.ID, 10),
 		},
-		tb.InlineButton{
+		{
 			Unique: "unsub_all_cancel_btn",
 			Text:   "取消",
 		},
 	})
 
-	var msg string
-
-	if mention == "" {
-		msg = "是否退订当前用户的所有订阅？"
-	} else {
-		msg = fmt.Sprintf("%s 是否退订该 Channel 所有订阅？", mention)
-	}
-
+	msg := fmt.Sprintf("是否退订%s的所有订阅？", getUserHtml(user, m.Chat, "当前用户"))
 	_, _ = B.Send(
 		m.Chat,
 		msg,
 		&tb.SendOptions{
-			ParseMode: tb.ModeHTML,
-		}, &tb.ReplyMarkup{
+			DisableWebPagePreview: true,
+			ParseMode:             tb.ModeHTML,
+		},
+		&tb.ReplyMarkup{
 			InlineKeyboard: confirmKeys,
 		},
 	)
@@ -749,38 +511,23 @@ func unsubAllCancelBtnCtr(c *tb.Callback) {
 }
 
 func unsubAllConfirmBtnCtr(c *tb.Callback) {
-	mention := GetMentionFromMessage(c.Message)
-	var msg string
-	if mention == "" {
-		success, fail, err := model.UnsubAllByUserID(int64(c.Sender.ID))
-		if err != nil {
-			msg = "退订失败"
-		} else {
-			msg = fmt.Sprintf("退订成功：%d\n退订失败：%d", success, fail)
-		}
-
-	} else {
-		channelChat, err := B.ChatByID(mention)
-
-		if err != nil {
-			_, _ = B.Edit(c.Message, "error")
-			return
-		}
-
-		if UserIsAdminChannel(c.Sender.ID, channelChat) {
-			success, fail, err := model.UnsubAllByUserID(channelChat.ID)
-			if err != nil {
-				msg = "退订失败"
-
-			} else {
-				msg = fmt.Sprintf("退订成功：%d\n退订失败：%d", success, fail)
-			}
-
-		} else {
-			msg = "非频道管理员无法执行此操作"
-		}
+	if c.Data == "" {
+		_, _ = B.Edit(c.Message, "内部错误：回调内容不正确")
+		return
+	}
+	user, err := getMentionedUser(c.Message, c.Data, c.Sender)
+	if err != nil {
+		_, _ = B.Edit(c.Message, err.Error())
+		return
 	}
 
+	var msg string
+	success, fail, err := model.UnsubAllByUserID(user.ID)
+	if err != nil {
+		msg = "退订失败"
+	} else {
+		msg = fmt.Sprintf("退订成功：%d\n退订失败：%d", success, fail)
+	}
 	_, _ = B.Edit(c.Message, msg)
 }
 
@@ -826,108 +573,81 @@ func importCmdCtr(m *tb.Message) {
 }
 
 func setFeedTagCmdCtr(m *tb.Message) {
-	mention := GetMentionFromMessage(m)
 	args := strings.Split(m.Payload, " ")
-
 	if len(args) < 1 {
-		B.Send(m.Chat, "/setfeedtag [sub id] [tag1] [tag2] 设置订阅标签（最多设置三个Tag，以空格分割）")
+		_, _ = B.Send(m.Chat, "/setfeedtag [sub id] [tag1] [tag2] 设置订阅标签（最多设置三个Tag，以空格分割）")
 		return
 	}
 
-	var subID int
-	var err error
-	if mention == "" {
-		// 截短参数
-		if len(args) > 4 {
-			args = args[:4]
-		}
-		subID, err = strconv.Atoi(args[0])
-		if err != nil {
-			B.Send(m.Chat, "请输入正确的订阅id!")
-			return
-		}
-	} else {
-		if len(args) > 5 {
-			args = args[:5]
-		}
-		subID, err = strconv.Atoi(args[1])
-		if err != nil {
-			B.Send(m.Chat, "请输入正确的订阅id!")
-			return
-		}
+	mention := GetMentionFromMessage(m)
+	if mention != "" {
+		args = args[1:]
 	}
-
-	sub, err := model.GetSubscribeByID(subID)
-	if err != nil || sub == nil {
-		B.Send(m.Chat, "请输入正确的订阅id!")
-		return
+	// 截短参数
+	if len(args) > 4 {
+		args = args[:4]
 	}
-
-	if !checkPermit(int64(m.Sender.ID), sub.UserID) {
-		B.Send(m.Chat, "没有权限!")
-		return
-	}
-
-	if mention == "" {
-		err = sub.SetTag(args[1:])
-	} else {
-		err = sub.SetTag(args[2:])
-	}
-
+	subID, err := strconv.Atoi(args[0])
 	if err != nil {
-		B.Send(m.Chat, "订阅标签设置失败!")
+		_, _ = B.Send(m.Chat, "请输入正确的订阅ID！")
 		return
 	}
-	B.Send(m.Chat, "订阅标签设置成功!")
+	sub, err := model.GetSubscribeByID(subID)
+	if err != nil {
+		_, _ = B.Send(m.Chat, "请输入正确的订阅ID！")
+		return
+	}
+	_, err = getMentionedUser(m, strconv.FormatInt(sub.UserID, 10), nil)
+	if err != nil {
+		_, _ = B.Send(m.Chat, err.Error())
+		return
+	}
+
+	err = sub.SetTag(args[1:])
+	if err != nil {
+		_, _ = B.Send(m.Chat, "订阅标签设置失败！")
+		return
+	}
+	_, _ = B.Send(m.Chat, "订阅标签设置成功！")
 }
 
 func setWebhookCmdCtr(m *tb.Message) {
 	args := strings.Split(m.Payload, " ")
 	if len(args) < 1 {
 		_, _ = B.Send(m.Chat, "/setwebhook [sub id] [webhook]")
-	}
-
-	url, mention := GetURLAndMentionFromMessage(m)
-	var subID int
-	var err error
-	if mention == "" {
-		subID, err = strconv.Atoi(args[0])
-		if err != nil {
-			_, _ = B.Send(m.Chat, "请输入正确的订阅id!")
-			return
-		}
-	} else {
-		subID, err = strconv.Atoi(args[1])
-		if err != nil {
-			_, _ = B.Send(m.Chat, "请输入正确的订阅id!")
-			return
-		}
-	}
-
-	sub, err := model.GetSubscribeByID(subID)
-	if err != nil || sub == nil {
-		_, _ = B.Send(m.Chat, "请输入正确的订阅id!")
 		return
 	}
 
-	if !checkPermit(int64(m.Sender.ID), sub.UserID) {
-		_, _ = B.Send(m.Chat, "没有权限!")
+	url, mention := GetURLAndMentionFromMessage(m)
+	if mention != "" {
+		args = args[1:]
+	}
+	subID, err := strconv.Atoi(args[0])
+	if err != nil {
+		_, _ = B.Send(m.Chat, "请输入正确的订阅ID！")
+		return
+	}
+	sub, err := model.GetSubscribeByID(subID)
+	if err != nil {
+		_, _ = B.Send(m.Chat, "请输入正确的订阅ID！")
+		return
+	}
+	_, err = getMentionedUser(m, strconv.FormatInt(sub.UserID, 10), nil)
+	if err != nil {
+		_, _ = B.Send(m.Chat, err.Error())
 		return
 	}
 
 	err = sub.SetWebhook(url)
-
 	if err != nil {
-		_, _ = B.Send(m.Chat, "订阅webhook设置失败!")
+		_, _ = B.Send(m.Chat, "订阅webhook设置失败！")
 		return
 	}
-	_, _ = B.Send(m.Chat, "订阅webhook设置成功!")
+	_, _ = B.Send(m.Chat, "订阅webhook设置成功！")
 }
 
 func setIntervalCmdCtr(m *tb.Message) {
-
 	args := strings.Split(m.Payload, " ")
-
 	if len(args) < 1 {
 		_, _ = B.Send(m.Chat, "/setinterval [interval] [sub id] 设置订阅刷新频率（可设置多个sub id，以空格分割）")
 		return
@@ -939,124 +659,61 @@ func setIntervalCmdCtr(m *tb.Message) {
 		return
 	}
 
+	var success, failed, wrong int
 	for _, id := range args[1:] {
-
 		subID, err := strconv.Atoi(id)
 		if err != nil {
-			_, _ = B.Send(m.Chat, "请输入正确的订阅id!")
-			return
+			wrong++
+			continue
 		}
-
 		sub, err := model.GetSubscribeByID(subID)
-
 		if err != nil || sub == nil {
-			_, _ = B.Send(m.Chat, "请输入正确的订阅id!")
-			return
+			wrong++
+			continue
 		}
-
-		if !checkPermit(int64(m.Sender.ID), sub.UserID) {
-			_, _ = B.Send(m.Chat, "没有权限!")
-			return
+		_, err = getMentionedUser(m, strconv.FormatInt(sub.UserID, 10), nil)
+		if err != nil {
+			wrong++
+			continue
 		}
-
-		_ = sub.SetInterval(interval)
-
+		err = sub.SetInterval(interval)
+		if err != nil {
+			failed++
+		} else {
+			success++
+		}
 	}
-	_, _ = B.Send(m.Chat, "抓取频率设置成功!")
-
-	return
+	_, _ = B.Send(m.Chat, fmt.Sprintf("抓取频率设置成功%d个，失败%d个，错误%d个！", success, failed, wrong))
 }
 
 func activeAllCmdCtr(m *tb.Message) {
 	mention := GetMentionFromMessage(m)
-	if mention != "" {
-		channelChat, err := B.ChatByID(mention)
-		if err != nil {
-			_, _ = B.Send(m.Chat, "error")
-			return
-		}
-		adminList, err := B.AdminsOf(channelChat)
-		if err != nil {
-			_, _ = B.Send(m.Chat, "error")
-			return
-		}
-
-		senderIsAdmin := false
-		for _, admin := range adminList {
-			if m.Sender.ID == admin.User.ID {
-				senderIsAdmin = true
-			}
-		}
-
-		if !senderIsAdmin {
-			_, _ = B.Send(m.Chat, fmt.Sprintf("非频道管理员无法执行此操作"))
-			return
-		}
-
-		_ = model.ActiveSourcesByUserID(channelChat.ID)
-		message := fmt.Sprintf("频道 <a href=\"https://t.me/%s\">%s</a> 订阅已全部开启", channelChat.Username, html.EscapeString(channelChat.Title))
-
-		_, _ = B.Send(m.Chat, message, &tb.SendOptions{
-			DisableWebPagePreview: true,
-			ParseMode:             tb.ModeHTML,
-		})
-
-	} else {
-		_ = model.ActiveSourcesByUserID(m.Chat.ID)
-		message := "订阅已全部开启"
-
-		_, _ = B.Send(m.Chat, message, &tb.SendOptions{
-			DisableWebPagePreview: true,
-			ParseMode:             tb.ModeHTML,
-		})
+	user, err := getMentionedUser(m, mention, nil)
+	if err != nil {
+		_, _ = B.Send(m.Chat, err.Error())
+		return
 	}
-
+	_ = model.ActiveSourcesByUserID(user.ID)
+	message := fmt.Sprintf("%s订阅已全部开启", getUserHtml(user, m.Chat, ""))
+	_, _ = B.Send(m.Chat, message, &tb.SendOptions{
+		DisableWebPagePreview: true,
+		ParseMode:             tb.ModeHTML,
+	})
 }
 
 func pauseAllCmdCtr(m *tb.Message) {
 	mention := GetMentionFromMessage(m)
-	if mention != "" {
-		channelChat, err := B.ChatByID(mention)
-		if err != nil {
-			_, _ = B.Send(m.Chat, "error")
-			return
-		}
-		adminList, err := B.AdminsOf(channelChat)
-		if err != nil {
-			_, _ = B.Send(m.Chat, "error")
-			return
-		}
-
-		senderIsAdmin := false
-		for _, admin := range adminList {
-			if m.Sender.ID == admin.User.ID {
-				senderIsAdmin = true
-			}
-		}
-
-		if !senderIsAdmin {
-			_, _ = B.Send(m.Chat, fmt.Sprintf("非频道管理员无法执行此操作"))
-			return
-		}
-
-		_ = model.PauseSourcesByUserID(channelChat.ID)
-		message := fmt.Sprintf("频道 <a href=\"https://t.me/%s\">%s</a> 订阅已全部暂停", channelChat.Username, html.EscapeString(channelChat.Title))
-
-		_, _ = B.Send(m.Chat, message, &tb.SendOptions{
-			DisableWebPagePreview: true,
-			ParseMode:             tb.ModeHTML,
-		})
-
-	} else {
-		_ = model.PauseSourcesByUserID(m.Chat.ID)
-		message := "订阅已全部暂停"
-
-		_, _ = B.Send(m.Chat, message, &tb.SendOptions{
-			DisableWebPagePreview: true,
-			ParseMode:             tb.ModeHTML,
-		})
+	user, err := getMentionedUser(m, mention, nil)
+	if err != nil {
+		_, _ = B.Send(m.Chat, err.Error())
+		return
 	}
-
+	_ = model.PauseSourcesByUserID(user.ID)
+	message := fmt.Sprintf("%s订阅已全部暂停", getUserHtml(user, m.Chat, ""))
+	_, _ = B.Send(m.Chat, message, &tb.SendOptions{
+		DisableWebPagePreview: true,
+		ParseMode:             tb.ModeHTML,
+	})
 }
 
 func textCtr(m *tb.Message) {
@@ -1111,7 +768,7 @@ func textCtr(m *tb.Message) {
 				return
 			}
 
-			registFeed(m.Chat, url[0])
+			registerFeed(m.Chat, m.Chat, url[0])
 			UserState[m.Chat.ID] = fsm.None
 		}
 	case fsm.SetSubTag:
@@ -1197,21 +854,9 @@ func textCtr(m *tb.Message) {
 
 // docCtr Document handler
 func docCtr(m *tb.Message) {
-	if m.FromGroup() {
-		if !userIsAdminOfGroup(m.Sender.ID, m.Chat) {
-			return
-		}
-	}
-
-	if m.FromChannel() {
-		if !UserIsAdminChannel(m.ID, m.Chat) {
-			return
-		}
-	}
-
 	url, _ := B.FileURLByID(m.Document.FileID)
 	if !strings.HasSuffix(url, ".opml") {
-		B.Send(m.Chat, "如果需要导入订阅，请发送正确的 OPML 文件。")
+		_, _ = B.Send(m.Chat, "如果需要导入订阅，请发送正确的 OPML 文件。")
 		return
 	}
 
@@ -1232,23 +877,13 @@ func docCtr(m *tb.Message) {
 		return
 	}
 
-	userID := m.Chat.ID
 	mention := GetMentionFromMessage(m)
-	if mention != "" {
-		// import for channel
-		channelChat, err := B.ChatByID(mention)
-		if err != nil {
-			_, _ = B.Send(m.Chat, "获取channel信息错误，请检查channel id是否正确")
-			return
-		}
-
-		if !checkPermitOfChat(int64(m.Sender.ID), channelChat) {
-			_, _ = B.Send(m.Chat, fmt.Sprintf("非频道管理员无法执行此操作"))
-			return
-		}
-
-		userID = channelChat.ID
+	user, err := getMentionedUser(m, mention, nil)
+	if err != nil {
+		_, _ = B.Send(m.Chat, err.Error())
+		return
 	}
+	userID := user.ID
 
 	message, _ := B.Send(m.Chat, "处理中，请稍后...")
 	outlines, _ := opml.GetFlattenOutlines()
@@ -1299,8 +934,4 @@ func docCtr(m *tb.Message) {
 		DisableWebPagePreview: true,
 		ParseMode:             tb.ModeHTML,
 	})
-}
-
-func errorCtr(m *tb.Message, errMsg string) {
-	_, _ = B.Send(m.Chat, errMsg)
 }

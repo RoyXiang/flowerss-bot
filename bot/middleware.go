@@ -1,59 +1,93 @@
 package bot
 
 import (
-	"fmt"
-	tb "gopkg.in/tucnak/telebot.v2"
+	"encoding/json"
+	"github.com/pkg/errors"
 	"strconv"
-	"strings"
+
+	tb "gopkg.in/tucnak/telebot.v2"
 )
 
-//feedSetAuth 验证订阅设置按钮点击者权限
-func feedSetAuth(c *tb.Callback) bool {
-	if (c.Message.Chat.Type == tb.ChatGroup || c.Message.Chat.Type == tb.ChatSuperGroup) &&
-		!userIsAdminOfGroup(c.Sender.ID, c.Message.Chat) {
-		// check admin
-		return false
+func getChatByUserId(userId int64) (*tb.Chat, error) {
+	params := map[string]int64{
+		"chat_id": userId,
 	}
 
-	data := strings.Split(c.Data, ":")
-	subscriberID, _ := strconv.Atoi(data[0])
-	// 如果订阅者与按钮点击者id不一致，需要验证管理员权限
-	if subscriberID != c.Sender.ID {
-		channelChat, err := B.ChatByID(fmt.Sprintf("%d", subscriberID))
-
-		if err != nil {
-			return false
-		}
-
-		if !UserIsAdminChannel(c.Sender.ID, channelChat) {
-			return false
-		}
-	}
-
-	return true
-}
-
-func checkPermit(userID int64, chatID int64) bool {
-	// 个人用户
-	if userID == chatID {
-		return true
-	}
-
-	// 群组或频道
-	chat, err := B.ChatByID(fmt.Sprintf("%d", chatID))
-
+	data, err := B.Raw("getChat", params)
 	if err != nil {
-		return false
+		return nil, err
 	}
 
-	return checkPermitOfChat(userID, chat)
+	var resp struct {
+		Result *tb.Chat
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, errors.Wrap(err, "telebot")
+	}
+	if resp.Result.Type == tb.ChatChannel && resp.Result.Username == "" {
+		resp.Result.Type = tb.ChatChannelPrivate
+	}
+	return resp.Result, nil
 }
 
-func checkPermitOfChat(userID int64, chat *tb.Chat) bool {
-	if (chat.Type == tb.ChatGroup || chat.Type == tb.ChatSuperGroup) &&
-		!userIsAdminOfGroup(int(userID), chat) {
-		// check admin
-		return false
+func isAdminOfChat(senderId int, chat *tb.Chat) error {
+	isChannel := chat.Type == tb.ChatChannel || chat.Type == tb.ChatChannelPrivate
+	isBotAdmin := false
+	if adminList, err := B.AdminsOf(chat); err == nil {
+		isSenderAdmin := false
+		for _, admin := range adminList {
+			if admin.User.ID == senderId {
+				isSenderAdmin = true
+			} else if admin.User.ID == B.Me.ID {
+				isBotAdmin = true
+			}
+		}
+		if isSenderAdmin && isBotAdmin {
+			return nil
+		} else if !isChannel && isSenderAdmin {
+			return nil
+		}
 	}
-	return true
+	if isChannel {
+		if isBotAdmin {
+			return ErrNotChannelAdmin
+		}
+		return ErrBotNotChannelAdmin
+	} else if chat.Type == tb.ChatGroup || chat.Type == tb.ChatSuperGroup {
+		return ErrNotGroupAdmin
+	}
+	return ErrNoPermission
+}
+
+func getMentionedUser(msg *tb.Message, mention string, sender *tb.User) (user *tb.Chat, err error) {
+	if mention == "" {
+		user = msg.Chat
+		return
+	}
+	var chat *tb.Chat
+	if userId, err := strconv.Atoi(mention); err != nil {
+		chat, _ = B.ChatByID(mention)
+	} else {
+		chat, _ = getChatByUserId(int64(userId))
+	}
+	if chat == nil {
+		err = ErrChatNotFound
+		return
+	}
+	if sender == nil {
+		sender = msg.Sender
+	}
+	if !HasAdminType(chat.Type) {
+		if int64(sender.ID) == msg.Chat.ID {
+			user = msg.Chat
+		} else {
+			err = ErrNoPermission
+		}
+		return
+	}
+	err = isAdminOfChat(sender.ID, chat)
+	if err == nil {
+		user = chat
+	}
+	return
 }
