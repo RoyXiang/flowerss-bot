@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/SlyMarbo/rss"
@@ -14,13 +15,6 @@ import (
 	"gorm.io/gorm"
 
 	parser "github.com/j-muller/go-torrent-parser"
-)
-
-const (
-	httpPrefix         = "http"
-	magnetPrefix       = "magnet:?xt=urn:btih:"
-	magnetLength       = 60
-	torrentContentType = "application/x-bittorrent"
 )
 
 // Content feed content
@@ -40,7 +34,7 @@ func (c *Content) GetTriggerId() string {
 	if c.TorrentUrl == "" {
 		return c.HashID
 	}
-	if strings.HasPrefix(c.RawID, magnetPrefix) && len(c.RawID) == magnetLength {
+	if strings.HasPrefix(c.RawID, util.MagnetPrefix) && len(c.RawID) == util.MagnetLength {
 		return c.RawID
 	}
 	return c.TorrentUrl
@@ -76,19 +70,19 @@ func getContentByFeedItem(source *Source, item *rss.Item) (Content, error) {
 
 	var torrentUrl string
 	for _, enclosure := range item.Enclosures {
-		if enclosure.Type == torrentContentType {
+		if enclosure.Type == util.TorrentContentType {
 			torrentUrl = enclosure.URL
 			break
 		}
 	}
 
 	if torrentUrl != "" {
-		if strings.HasPrefix(c.RawID, magnetPrefix) && len(c.RawID) == magnetLength {
+		if strings.HasPrefix(c.RawID, util.MagnetPrefix) && len(c.RawID) == util.MagnetLength {
 			c.TorrentUrl = torrentUrl
-		} else if strings.HasPrefix(torrentUrl, httpPrefix) {
+		} else {
 			infoHash := getTorrentInfoHash(torrentUrl)
 			if infoHash != "" {
-				c.RawID = fmt.Sprintf("%s%s", magnetPrefix, infoHash)
+				c.RawID = fmt.Sprintf("%s%s", util.MagnetPrefix, infoHash)
 				c.TorrentUrl = torrentUrl
 			}
 		}
@@ -122,6 +116,10 @@ func DeleteContentsBySourceID(sid uint) {
 }
 
 func getTorrentInfoHash(torrentUrl string) (infoHash string) {
+	_, err := url.ParseRequestURI(torrentUrl)
+	if err != nil {
+		return
+	}
 	req, err := http.NewRequest(http.MethodGet, torrentUrl, nil)
 	if err != nil {
 		return

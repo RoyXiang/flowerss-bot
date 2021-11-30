@@ -2,12 +2,14 @@ package bot
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -15,7 +17,9 @@ import (
 	"github.com/indes/flowerss-bot/config"
 	"github.com/indes/flowerss-bot/model"
 	"github.com/indes/flowerss-bot/util"
+	"github.com/putdotio/go-putio/putio"
 	"go.uber.org/zap"
+	"golang.org/x/oauth2"
 
 	tb "gopkg.in/tucnak/telebot.v2"
 )
@@ -355,4 +359,32 @@ func GetURLAndMentionFromMessage(m *tb.Message) (url string, mention string) {
 	}
 
 	return
+}
+
+func NewPutIoClient(token string) *putio.Client {
+	tokenSource := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
+	oauthClient := oauth2.NewClient(context.Background(), tokenSource)
+	return putio.NewClient(oauthClient)
+}
+
+func IsTorrentUrl(torrentUrl string) bool {
+	_, err := url.ParseRequestURI(torrentUrl)
+	if err != nil {
+		return false
+	}
+	req, err := http.NewRequest(http.MethodHead, torrentUrl, nil)
+	if err != nil {
+		return false
+	}
+	resp, err := util.HttpClient.Do(req)
+	if err != nil {
+		return false
+	}
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
+	return resp.Header.Get(util.ContentTypeHeader) == util.TorrentContentType
 }

@@ -10,6 +10,7 @@ type User struct {
 	TelegramID int64    `gorm:"uniqueIndex"`
 	Source     []Source `gorm:"many2many:subscribes;"`
 	State      int      `gorm:"DEFAULT:0;"`
+	Token      string
 	EditTime
 }
 
@@ -19,6 +20,12 @@ func FindOrCreateUserByTelegramID(telegramID int64) (*User, error) {
 	db.Where(User{TelegramID: telegramID}).FirstOrCreate(&user)
 
 	return &user, nil
+}
+
+func SaveTokenByUserId(userId int64, token string) error {
+	user, _ := FindOrCreateUserByTelegramID(userId)
+	user.Token = token
+	return db.Save(user).Error
 }
 
 // GetSubSourceMap get user subscribe and feed source

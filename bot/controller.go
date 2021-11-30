@@ -2,7 +2,9 @@ package bot
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"github.com/indes/flowerss-bot/util"
 	"html"
 	"html/template"
 	"strconv"
@@ -13,7 +15,6 @@ import (
 	"github.com/indes/flowerss-bot/config"
 	"github.com/indes/flowerss-bot/model"
 	"go.uber.org/zap"
-
 	tb "gopkg.in/tucnak/telebot.v2"
 )
 
@@ -646,6 +647,39 @@ func setWebhookCmdCtr(m *tb.Message) {
 	_, _ = B.Send(m.Chat, "订阅webhook设置成功！")
 }
 
+func setTokenCmdCtr(m *tb.Message) {
+	args := strings.Split(m.Payload, " ")
+	mention := GetMentionFromMessage(m)
+	if mention != "" {
+		args = args[1:]
+	}
+	if len(args) != 1 {
+		_, _ = B.Send(m.Chat, "/set_token [token] 设置Put.io的token")
+		return
+	}
+	token := args[0]
+
+	user, err := getMentionedUser(m, mention, nil)
+	if err != nil {
+		_, _ = B.Send(m.Chat, err.Error())
+		return
+	}
+
+	client := NewPutIoClient(token)
+	info, err := client.Account.Info(context.Background())
+	if err != nil {
+		_, _ = B.Send(m.Chat, "无效的token")
+		return
+	}
+	text := getUserHtml(user, m.Chat, "")
+	err = model.SaveTokenByUserId(user.ID, token)
+	if err != nil {
+		_, _ = B.Send(m.Chat, fmt.Sprintf("%s保存token失败", text))
+		return
+	}
+	_, _ = B.Send(m.Chat, fmt.Sprintf("%s成功保存了 %s 的 token", text, info.Username))
+}
+
 func setIntervalCmdCtr(m *tb.Message) {
 	args := strings.Split(m.Payload, " ")
 	if len(args) < 1 {
@@ -849,17 +883,72 @@ func textCtr(m *tb.Message) {
 				UserState[m.Chat.ID] = fsm.None
 			}
 		}
+	default:
+		var urls []string
+		for _, entity := range m.Entities {
+			if entity.Type != tb.EntityURL {
+				continue
+			}
+			url := entity.URL
+			if url == "" {
+				url = m.Text[entity.Offset : entity.Offset+entity.Length]
+			}
+			if IsTorrentUrl(url) {
+				urls = append(urls, url)
+			}
+		}
+
+		parts := strings.Split(m.Text, " ")
+		for _, part := range parts {
+			if strings.HasPrefix(part, util.MagnetPrefix) {
+				urls = append(urls, part)
+			}
+		}
+
+		total := len(urls)
+		if total <= 0 {
+			return
+		}
+		mention := GetMentionFromMessage(m)
+		tgUser, err := getMentionedUser(m, mention, nil)
+		if err != nil {
+			return
+		}
+		user, _ := model.FindOrCreateUserByTelegramID(tgUser.ID)
+		if user.Token == "" {
+			return
+		}
+		var count int
+		client := NewPutIoClient(user.Token)
+		for _, url := range urls {
+			_, err = client.Transfers.Add(context.Background(), url, 0, "")
+			if err == nil {
+				count++
+			}
+		}
+		_, _ = B.Reply(m, fmt.Sprintf("发现%d条链接，成功添加%d个下载任务", total, count))
 	}
 }
 
 // docCtr Document handler
 func docCtr(m *tb.Message) {
-	url, _ := B.FileURLByID(m.Document.FileID)
-	if !strings.HasSuffix(url, ".opml") {
-		_, _ = B.Send(m.Chat, "如果需要导入订阅，请发送正确的 OPML 文件。")
+	mention := GetMentionFromMessage(m)
+	user, err := getMentionedUser(m, mention, nil)
+	if err != nil {
+		_, _ = B.Send(m.Chat, err.Error())
 		return
 	}
 
+	url, _ := B.FileURLByID(m.Document.FileID)
+	switch m.Document.MIME {
+	case util.OpmlContentType:
+		importOpmlFile(m, user.ID, url)
+	case util.TorrentContentType:
+		startTorrentFileTransfer(m, user.ID, url)
+	}
+}
+
+func importOpmlFile(m *tb.Message, userID int64, url string) {
 	opml, err := GetOPMLByURL(url)
 	if err != nil {
 		if err.Error() == "fetch opml file error" {
@@ -876,14 +965,6 @@ func docCtr(m *tb.Message) {
 		}
 		return
 	}
-
-	mention := GetMentionFromMessage(m)
-	user, err := getMentionedUser(m, mention, nil)
-	if err != nil {
-		_, _ = B.Send(m.Chat, err.Error())
-		return
-	}
-	userID := user.ID
 
 	message, _ := B.Send(m.Chat, "处理中，请稍后...")
 	outlines, _ := opml.GetFlattenOutlines()
@@ -934,4 +1015,19 @@ func docCtr(m *tb.Message) {
 		DisableWebPagePreview: true,
 		ParseMode:             tb.ModeHTML,
 	})
+}
+
+func startTorrentFileTransfer(msg *tb.Message, userId int64, url string) {
+	user, _ := model.FindOrCreateUserByTelegramID(userId)
+	if user.Token == "" {
+		_, _ = B.Send(msg.Chat, "请先设置Put.io的token")
+		return
+	}
+	client := NewPutIoClient(user.Token)
+	_, err := client.Transfers.Add(context.Background(), url, 0, "")
+	if err != nil {
+		_, _ = B.Reply(msg, "添加下载任务失败")
+		return
+	}
+	_, _ = B.Reply(msg, "成功添加下载任务")
 }
