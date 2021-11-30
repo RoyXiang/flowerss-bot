@@ -309,8 +309,8 @@ func setSubTagBtnCtr(c *tb.Callback) {
 		return
 	}
 	msg := fmt.Sprintf(
-		"请使用`/setfeedtag %d tags`命令为该订阅设置标签，tags为需要设置的标签，以空格分隔。（最多设置三个标签） \n"+
-			"例如：`/setfeedtag %d 科技 苹果`",
+		"请使用`/set_feed_tag %d tags`命令为该订阅设置标签，tags为需要设置的标签，以空格分隔。（最多设置三个标签） \n"+
+			"例如：`/set_feed_tag %d 科技 苹果`",
 		sub.ID, sub.ID)
 
 	_ = B.Delete(c.Message)
@@ -547,14 +547,14 @@ func helpCmdCtr(m *tb.Message) {
 /list 查看当前订阅源
 /set 设置订阅
 /check 检查当前订阅
-/setfeedtag 设置订阅标签
-/setinterval 设置订阅刷新频率
-/activeall 开启所有订阅
-/pauseall 暂停所有订阅
+/set_feed_tag 设置订阅标签
+/set_interval 设置订阅刷新频率
+/active_all 开启所有订阅
+/pause_all 暂停所有订阅
 /help 帮助
 /import 导入 OPML 文件
 /export 导出 OPML 文件
-/unsuball 取消所有订阅
+/unsub_all 取消所有订阅
 详细使用方法请看：https://github.com/indes/flowerss-bot
 `
 
@@ -575,7 +575,7 @@ func importCmdCtr(m *tb.Message) {
 func setFeedTagCmdCtr(m *tb.Message) {
 	args := strings.Split(m.Payload, " ")
 	if len(args) < 1 {
-		_, _ = B.Send(m.Chat, "/setfeedtag [sub id] [tag1] [tag2] 设置订阅标签（最多设置三个Tag，以空格分割）")
+		_, _ = B.Send(m.Chat, "/set_feed_tag [sub id] [tag1] [tag2] 设置订阅标签（最多设置三个Tag，以空格分割）")
 		return
 	}
 
@@ -614,7 +614,7 @@ func setFeedTagCmdCtr(m *tb.Message) {
 func setWebhookCmdCtr(m *tb.Message) {
 	args := strings.Split(m.Payload, " ")
 	if len(args) < 1 {
-		_, _ = B.Send(m.Chat, "/setwebhook [sub id] [webhook]")
+		_, _ = B.Send(m.Chat, "/set_webhook [sub id] [webhook]")
 		return
 	}
 
@@ -649,7 +649,7 @@ func setWebhookCmdCtr(m *tb.Message) {
 func setIntervalCmdCtr(m *tb.Message) {
 	args := strings.Split(m.Payload, " ")
 	if len(args) < 1 {
-		_, _ = B.Send(m.Chat, "/setinterval [interval] [sub id] 设置订阅刷新频率（可设置多个sub id，以空格分割）")
+		_, _ = B.Send(m.Chat, "/set_interval [interval] [sub id] 设置订阅刷新频率（可设置多个sub id，以空格分割）")
 		return
 	}
 
