@@ -7,6 +7,7 @@ import (
 	"github.com/indes/flowerss-bot/util"
 	"html"
 	"html/template"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -171,7 +172,15 @@ func listCmdCtr(m *tb.Message) {
 		rspMessage += "订阅列表为空"
 	} else {
 		rspMessage += "订阅列表：\n"
-		for sub, source := range subSourceMap {
+		var subs []model.Subscribe
+		for sub, _ := range subSourceMap {
+			subs = append(subs, sub)
+		}
+		sort.SliceStable(subs, func(i, j int) bool {
+			return subs[i].ID < subs[j].ID
+		})
+		for _, sub := range subs {
+			source := subSourceMap[sub]
 			rspMessage += fmt.Sprintf("[%d] <a href=\"%s\">%s</a>\n", sub.ID, source.Link, html.EscapeString(source.Title))
 		}
 	}
