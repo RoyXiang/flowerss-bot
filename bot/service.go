@@ -391,7 +391,7 @@ func AddPutIoTransfer(token string, urlMap map[string]string) (count int) {
 	var callbackUrl string
 	client := NewPutIoClient(token)
 	settings, err := client.Account.Settings(ctx)
-	if err != nil {
+	if err == nil {
 		parent = settings.DefaultDownloadFolder
 		callbackUrl = settings.CallbackURL
 	}
