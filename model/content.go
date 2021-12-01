@@ -31,13 +31,14 @@ type Content struct {
 }
 
 func (c *Content) GetTriggerId() string {
-	if c.TorrentUrl == "" {
-		return c.HashID
-	}
 	if strings.HasPrefix(c.RawID, util.MagnetPrefix) && len(c.RawID) == util.MagnetLength {
 		return c.RawID
+	} else if c.TorrentUrl != "" {
+		return c.TorrentUrl
+	} else if c.RawID == c.RawLink {
+		return c.RawID
 	}
-	return c.TorrentUrl
+	return c.HashID
 }
 
 func (c *Content) Publish(source *Source) {
