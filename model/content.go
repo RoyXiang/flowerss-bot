@@ -110,11 +110,6 @@ func GenContentAndCheckByFeedItem(s *Source, item *rss.Item) (*Content, bool, er
 	return &content, isBroaded, nil
 }
 
-// DeleteContentsBySourceID delete contents in the db by sourceID
-func DeleteContentsBySourceID(sid uint) {
-	db.Delete(Content{}, "source_id = ?", sid)
-}
-
 func getTorrentInfoHash(torrentUrl string) (infoHash string) {
 	_, err := url.ParseRequestURI(torrentUrl)
 	if err != nil {

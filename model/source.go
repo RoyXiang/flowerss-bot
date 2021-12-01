@@ -26,6 +26,10 @@ type Source struct {
 	EditTime
 }
 
+func (s *Source) AfterDelete(tx *gorm.DB) error {
+	return tx.Where("source_id = ?", s.ID).Delete(Content{}).Error
+}
+
 func (s *Source) appendContents(items []*rss.Item) error {
 	var contents []Content
 	hasTorrent := false
@@ -308,19 +312,4 @@ func GetSourceById(id uint) (*Source, error) {
 	}
 
 	return &source, nil
-}
-
-func (s *Source) GetSubscribeNum() int {
-	var subs []Subscribe
-	db.Where("source_id=?", s.ID).Find(&subs)
-	return len(subs)
-}
-
-func (s *Source) DeleteContents() {
-	DeleteContentsBySourceID(s.ID)
-}
-
-func (s *Source) DeleteDueNoSubscriber() {
-	s.DeleteContents()
-	db.Delete(&s)
 }

@@ -21,6 +21,18 @@ type Subscribe struct {
 	EditTime
 }
 
+func (s *Subscribe) AfterDelete(tx *gorm.DB) (err error) {
+	var count int64
+	err = tx.Model(&Subscribe{}).Where("source_id = ?", s.SourceID).Count(&count).Error
+	if err != nil {
+		return
+	}
+	if count < 1 {
+		err = tx.Delete(&Source{ID: s.SourceID}).Error
+	}
+	return
+}
+
 func RegistFeed(userID int64, sourceID uint) error {
 	var subscribe Subscribe
 
@@ -71,11 +83,7 @@ func UnsubByUserIDAndSource(userID int64, source *Source) error {
 	if sub.UserID != userID {
 		return errors.New("未订阅该RSS源")
 	}
-	db.Delete(&sub)
-	if source.GetSubscribeNum() < 1 {
-		source.DeleteDueNoSubscriber()
-	}
-	return nil
+	return db.Delete(&sub).Error
 }
 
 func UnsubByUserIDAndSubID(userID int64, subID uint) error {
@@ -85,13 +93,7 @@ func UnsubByUserIDAndSubID(userID int64, subID uint) error {
 	if sub.UserID != userID {
 		return errors.New("未找到该条订阅")
 	}
-	db.Delete(&sub)
-
-	source, _ := GetSourceById(sub.SourceID)
-	if source.GetSubscribeNum() < 1 {
-		source.DeleteDueNoSubscriber()
-	}
-	return nil
+	return db.Delete(&sub).Error
 }
 
 func UnsubAllByUserID(userID int64) (success int, fail int, err error) {
