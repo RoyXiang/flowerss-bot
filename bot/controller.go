@@ -884,7 +884,7 @@ func textCtr(m *tb.Message) {
 			}
 		}
 	default:
-		var urls []string
+		urlMap := make(map[string]string, len(m.Entities))
 		for _, entity := range m.Entities {
 			if entity.Type != tb.EntityURL && entity.Type != tb.EntityTextLink {
 				continue
@@ -894,18 +894,18 @@ func textCtr(m *tb.Message) {
 				url = m.Text[entity.Offset : entity.Offset+entity.Length]
 			}
 			if IsTorrentUrl(url) {
-				urls = append(urls, url)
+				urlMap[url] = ""
 			}
 		}
 
 		parts := strings.Split(m.Text, " ")
 		for _, part := range parts {
 			if strings.HasPrefix(part, util.MagnetPrefix) {
-				urls = append(urls, part)
+				urlMap[part] = ""
 			}
 		}
 
-		total := len(urls)
+		total := len(urlMap)
 		if total <= 0 {
 			return
 		}
@@ -918,14 +918,7 @@ func textCtr(m *tb.Message) {
 		if user.Token == "" {
 			return
 		}
-		var count int
-		client := NewPutIoClient(user.Token)
-		for _, url := range urls {
-			_, err = client.Transfers.Add(context.Background(), url, 0, "")
-			if err == nil {
-				count++
-			}
-		}
+		count := AddPutIoTransfer(user.Token, urlMap)
 		_, _ = B.Reply(m, fmt.Sprintf("发现%d条链接，成功添加%d个下载任务", total, count))
 	}
 }
@@ -1023,9 +1016,9 @@ func startTorrentFileTransfer(msg *tb.Message, userId int64, url string) {
 		_, _ = B.Send(msg.Chat, "请先设置Put.io的token")
 		return
 	}
-	client := NewPutIoClient(user.Token)
-	_, err := client.Transfers.Add(context.Background(), url, 0, "")
-	if err != nil {
+	urlMap := map[string]string{url: ""}
+	count := AddPutIoTransfer(user.Token, urlMap)
+	if count <= 0 {
 		_, _ = B.Reply(msg, "添加下载任务失败")
 		return
 	}

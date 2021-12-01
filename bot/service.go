@@ -383,3 +383,39 @@ func IsTorrentUrl(torrentUrl string) bool {
 	contentType := resp.Header.Get(util.ContentTypeHeader)
 	return strings.HasPrefix(contentType, util.TorrentContentType)
 }
+
+func AddPutIoTransfer(token string, urlMap map[string]string) (count int) {
+	ctx := context.Background()
+
+	var parent int64
+	var callbackUrl string
+	client := NewPutIoClient(token)
+	settings, err := client.Account.Settings(ctx)
+	if err != nil {
+		parent = settings.DefaultDownloadFolder
+		callbackUrl = settings.CallbackURL
+	}
+
+	for urlStr, triggerId := range urlMap {
+		var history *model.History
+		if triggerId != "" {
+			history = &model.History{
+				Type:      model.TorrentTransfer,
+				TriggerId: triggerId,
+				TargetId:  token,
+			}
+			if history.IsSaved() {
+				continue
+			}
+		}
+
+		_, err := client.Transfers.Add(ctx, urlStr, parent, callbackUrl)
+		if err == nil {
+			count++
+			if history != nil {
+				history.Save()
+			}
+		}
+	}
+	return
+}
