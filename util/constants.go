@@ -1,9 +1,9 @@
 package util
 
 const (
-	ContentTypeHeader  = "Content-Type"
-	OpmlContentType    = "text/x-opml+xml"
-	TorrentContentType = "application/x-bittorrent"
-	MagnetPrefix       = "magnet:?xt=urn:btih:"
-	MagnetLength       = 60
+	ContentTypeOpml    = "text/x-opml+xml"
+	ContentTypeTorrent = "application/x-bittorrent"
+	HeaderContentType  = "Content-Type"
+	LengthMagnet       = 60
+	PrefixMagnet       = "magnet:?xt=urn:btih:"
 )

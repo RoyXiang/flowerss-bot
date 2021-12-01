@@ -118,7 +118,7 @@ func BroadcastNews(source *model.Source, subs []*model.Subscribe, contents []*mo
 			}
 
 			history := &model.History{
-				Type:      model.TelegramMessage,
+				Type:      model.HistoryTelegramMessage,
 				TriggerId: content.GetTriggerId(),
 				TargetId:  strconv.FormatInt(sub.UserID, 10),
 			}
@@ -219,7 +219,7 @@ func SendWebhook(subs []*model.Subscribe, contents []*model.Content) {
 			}
 
 			history := &model.History{
-				Type:      model.Webhook,
+				Type:      model.HistoryWebhook,
 				TriggerId: content.GetTriggerId(),
 				TargetId:  sub.Webhook,
 			}
@@ -396,8 +396,8 @@ func IsTorrentUrl(torrentUrl string) bool {
 	if resp.StatusCode != http.StatusOK {
 		return false
 	}
-	contentType := resp.Header.Get(util.ContentTypeHeader)
-	return strings.HasPrefix(contentType, util.TorrentContentType)
+	contentType := resp.Header.Get(util.HeaderContentType)
+	return strings.HasPrefix(contentType, util.ContentTypeTorrent)
 }
 
 func AddPutIoTransfer(token string, urlMap map[string]string) (count int) {
@@ -416,7 +416,7 @@ func AddPutIoTransfer(token string, urlMap map[string]string) (count int) {
 		var history *model.History
 		if triggerId != "" {
 			history = &model.History{
-				Type:      model.TorrentTransfer,
+				Type:      model.HistoryTorrentTransfer,
 				TriggerId: triggerId,
 				TargetId:  token,
 			}

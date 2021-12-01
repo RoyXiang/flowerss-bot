@@ -3,9 +3,9 @@ package model
 type HistoryType int
 
 const (
-	TelegramMessage HistoryType = iota
-	TorrentTransfer
-	Webhook
+	HistoryTelegramMessage HistoryType = iota
+	HistoryTorrentTransfer
+	HistoryWebhook
 )
 
 type History struct {

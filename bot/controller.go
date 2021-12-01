@@ -902,7 +902,7 @@ func textCtr(m *tb.Message) {
 
 		parts := strings.Split(m.Text, " ")
 		for _, part := range parts {
-			if strings.HasPrefix(part, util.MagnetPrefix) {
+			if strings.HasPrefix(part, util.PrefixMagnet) {
 				urlMap[part] = ""
 			}
 		}
@@ -936,9 +936,9 @@ func docCtr(m *tb.Message) {
 
 	url, _ := B.FileURLByID(m.Document.FileID)
 	switch m.Document.MIME {
-	case util.OpmlContentType:
+	case util.ContentTypeOpml:
 		importOpmlFile(m, user.ID, url)
-	case util.TorrentContentType:
+	case util.ContentTypeTorrent:
 		startTorrentFileTransfer(m, user.ID, url)
 	}
 }

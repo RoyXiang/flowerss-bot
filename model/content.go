@@ -31,7 +31,7 @@ type Content struct {
 }
 
 func (c *Content) GetTriggerId() string {
-	if strings.HasPrefix(c.RawID, util.MagnetPrefix) && len(c.RawID) == util.MagnetLength {
+	if strings.HasPrefix(c.RawID, util.PrefixMagnet) && len(c.RawID) == util.LengthMagnet {
 		return c.RawID
 	} else if c.TorrentUrl != "" {
 		return c.TorrentUrl
@@ -71,19 +71,19 @@ func getContentByFeedItem(source *Source, item *rss.Item) (Content, error) {
 
 	var torrentUrl string
 	for _, enclosure := range item.Enclosures {
-		if enclosure.Type == util.TorrentContentType {
+		if enclosure.Type == util.ContentTypeTorrent {
 			torrentUrl = enclosure.URL
 			break
 		}
 	}
 
 	if torrentUrl != "" {
-		if strings.HasPrefix(c.RawID, util.MagnetPrefix) && len(c.RawID) == util.MagnetLength {
+		if strings.HasPrefix(c.RawID, util.PrefixMagnet) && len(c.RawID) == util.LengthMagnet {
 			c.TorrentUrl = torrentUrl
 		} else {
 			infoHash := getTorrentInfoHash(torrentUrl)
 			if infoHash != "" {
-				c.RawID = fmt.Sprintf("%s%s", util.MagnetPrefix, infoHash)
+				c.RawID = fmt.Sprintf("%s%s", util.PrefixMagnet, infoHash)
 				c.TorrentUrl = torrentUrl
 			}
 		}
