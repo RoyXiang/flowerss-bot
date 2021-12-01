@@ -42,12 +42,15 @@ func (c *Content) GetTriggerId() string {
 }
 
 func (c *Content) Publish(source *Source) {
+	if c.TelegraphURL != "" {
+		return
+	}
 	if c.Description == "" || len([]rune(c.Description)) <= config.PreviewText {
 		return
 	}
-	url, err := tgraph.PublishHtml(source.Title, c.Title, c.RawLink, c.Description)
+	urlStr, err := tgraph.PublishHtml(source.Title, c.Title, c.RawLink, c.Description)
 	if err == nil {
-		c.TelegraphURL = url
+		c.TelegraphURL = urlStr
 	}
 }
 
@@ -67,6 +70,21 @@ func getContentByFeedItem(source *Source, item *rss.Item) (Content, error) {
 		RawID:       strings.ToLower(item.ID),
 		HashID:      genHashID(source.Link, item.ID),
 		RawLink:     item.Link,
+	}
+
+	if strings.HasPrefix(c.RawLink, util.PrefixInstantView) {
+		u, err := url.Parse(c.RawLink)
+		if err == nil {
+			query := u.Query()
+			originalUrl := query.Get("url")
+			if originalUrl != "" && query.Get("rhash") != "" {
+				c.TelegraphURL = c.RawLink
+				c.RawLink = originalUrl
+				if c.RawID == c.TelegraphURL {
+					c.RawID = originalUrl
+				}
+			}
+		}
 	}
 
 	var torrentUrl string
