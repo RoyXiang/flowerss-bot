@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -123,10 +124,13 @@ func getTorrentInfoHash(torrentUrl string) (infoHash string) {
 	if err != nil {
 		return
 	}
-	resp, err := util.SendRequest(req)
+	resp, err := util.HttpClient.Do(req)
 	if err != nil {
 		return
 	}
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		return
 	}

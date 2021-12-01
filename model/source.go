@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"sort"
@@ -60,10 +61,13 @@ func fetchFunc(url string) (resp *http.Response, err error) {
 	}
 	req.Header.Set("User-Agent", config.UserAgent)
 
-	resp, err = util.SendRequest(req)
+	resp, err = util.HttpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 
 	var data []byte
 	if data, err = ioutil.ReadAll(resp.Body); err != nil {

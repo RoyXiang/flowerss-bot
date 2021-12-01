@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -240,10 +241,13 @@ func sendBodyToWebhook(body webhookBody, webhook string) bool {
 	req.Header.Set("User-Agent", config.UserAgent)
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 
-	resp, err := util.SendRequest(req)
+	resp, err := util.HttpClient.Do(req)
 	if err != nil {
 		return false
 	}
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 	return resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices
 }
 
@@ -366,10 +370,13 @@ func IsTorrentUrl(torrentUrl string) bool {
 	if err != nil {
 		return false
 	}
-	resp, err := util.SendRequest(req)
+	resp, err := util.HttpClient.Do(req)
 	if err != nil {
 		return false
 	}
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		return false
 	}

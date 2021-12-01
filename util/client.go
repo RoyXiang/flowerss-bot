@@ -1,7 +1,6 @@
 package util
 
 import (
-	"io"
 	"net/http"
 	"time"
 
@@ -29,15 +28,4 @@ func clientInit() {
 		}
 		httpTransport.Dial = dialer.Dial
 	}
-}
-
-func SendRequest(req *http.Request) (*http.Response, error) {
-	resp, err := HttpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
-	return resp, err
 }
