@@ -231,17 +231,10 @@ func setCmdCtr(m *tb.Message) {
 		return
 	}
 
-	var replyButton []tb.ReplyButton
-	var replyKeys [][]tb.ReplyButton
 	var setFeedItemBtns [][]tb.InlineButton
-
 	// 配置按钮
 	for _, source := range sources {
 		// 添加按钮
-		text := fmt.Sprintf("%s %s", source.Title, source.Link)
-		replyButton = []tb.ReplyButton{{Text: text}}
-		replyKeys = append(replyKeys, replyButton)
-
 		setFeedItemBtns = append(setFeedItemBtns, []tb.InlineButton{{
 			Unique: "set_feed_item_btn",
 			Text:   fmt.Sprintf("[%d] %s", source.ID, source.Title),

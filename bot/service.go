@@ -61,12 +61,28 @@ func registerFeed(chat, user *tb.Chat, url string) {
 		return
 	}
 
+	keyboard := make([][]tb.InlineButton, 1)
+	keyboard[0] = []tb.InlineButton{
+		{
+			Unique: "set_feed_item_btn",
+			Text:   "设置",
+			Data:   fmt.Sprintf("%d:%d", user.ID, source.ID),
+		},
+	}
+
 	newText := getUserHtml(user, chat, "")
 	newText += fmt.Sprintf("订阅 <a href=\"%s\">%s</a> 成功", source.Link, source.Title)
-	_, _ = B.Edit(msg, newText, &tb.SendOptions{
-		DisableWebPagePreview: true,
-		ParseMode:             tb.ModeHTML,
-	})
+	_, _ = B.Edit(
+		msg,
+		newText,
+		&tb.SendOptions{
+			DisableWebPagePreview: true,
+			ParseMode:             tb.ModeHTML,
+		},
+		&tb.ReplyMarkup{
+			InlineKeyboard: keyboard,
+		},
+	)
 }
 
 //SendError send error user
