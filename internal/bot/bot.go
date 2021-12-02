@@ -99,6 +99,7 @@ func setCommands() {
 		{Text: "pause_all", Description: "停止抓取订阅更新"},
 		{Text: "active_all", Description: "开启抓取订阅更新"},
 
+		{Text: "cancel", Description: "取消当前操作"},
 		{Text: "help", Description: "使用帮助"},
 		{Text: "version", Description: "bot版本"},
 	}
@@ -162,6 +163,8 @@ func setHandle() {
 	B.Handle("/active_all", activeAllCmdCtr)
 
 	B.Handle("/pause_all", pauseAllCmdCtr)
+
+	B.Handle("/cancel", cancelCmdCtr)
 
 	B.Handle("/version", versionCmdCtr)
 

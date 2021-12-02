@@ -549,6 +549,11 @@ func unsubAllCancelBtnCtr(c *tb.Callback) {
 	_, _ = B.Edit(c.Message, "操作取消")
 }
 
+func cancelCmdCtr(m *tb.Message) {
+	_, _ = B.Send(m.Chat, "当前操作已取消。")
+	UserState[m.Chat.ID] = fsm.None
+}
+
 func unsubAllConfirmBtnCtr(c *tb.Callback) {
 	if c.Data == "" {
 		_, _ = B.Edit(c.Message, "内部错误：回调内容不正确")
