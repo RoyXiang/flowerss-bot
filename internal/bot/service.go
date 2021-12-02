@@ -184,12 +184,23 @@ func AddPutIoTransfers(subs []*model.Subscribe, contents []*model.Content) {
 		return
 	}
 
+	tokenMap := map[int64]string{}
 	for _, sub := range subs {
-		user, err := model.FindOrCreateUserByTelegramID(sub.UserID)
-		if err != nil || user.Token == "" {
+		if sub.EnableDownload != 1 {
 			continue
 		}
-		AddPutIoTransfer(user.Token, urlMap)
+		if _, ok := tokenMap[sub.UserID]; !ok {
+			user, err := model.FindOrCreateUserByTelegramID(sub.UserID)
+			if err == nil {
+				tokenMap[sub.UserID] = user.Token
+			} else {
+				tokenMap[sub.UserID] = ""
+			}
+		}
+		if tokenMap[sub.UserID] == "" {
+			continue
+		}
+		AddPutIoTransfer(tokenMap[sub.UserID], urlMap)
 	}
 }
 
