@@ -27,7 +27,7 @@ type Source struct {
 	EditTime
 }
 
-func (s *Source) AfterDelete(tx *gorm.DB) error {
+func (s *Source) BeforeDelete(tx *gorm.DB) error {
 	return tx.Where("source_id = ?", s.ID).Delete(Content{}).Error
 }
 
