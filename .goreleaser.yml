@@ -10,21 +10,21 @@ before:
 
 builds:
   - id: darwin
-    ldflags: -s -w -X github.com/indes/flowerss-bot/config.version={{.Version}} -X github.com/indes/flowerss-bot/config.date={{.Date}} -X github.com/indes/flowerss-bot/config.commit={{ .ShortCommit }}
+    ldflags: -s -w -X github.com/indes/flowerss-bot/internal/config.version={{.Version}} -X github.com/indes/flowerss-bot/internal/config.date={{.Date}} -X github.com/indes/flowerss-bot/internal/config.commit={{ .ShortCommit }}
     goos:
       - darwin
     goarch:
       - amd64
 
   - id: linux
-    ldflags: -s -w -X github.com/indes/flowerss-bot/config.version={{.Version}} -X github.com/indes/flowerss-bot/config.date={{.Date}} -X github.com/indes/flowerss-bot/config.commit={{ .ShortCommit }}
+    ldflags: -s -w -X github.com/indes/flowerss-bot/internal/config.version={{.Version}} -X github.com/indes/flowerss-bot/internal/config.date={{.Date}} -X github.com/indes/flowerss-bot/internal/config.commit={{ .ShortCommit }}
     goos:
       - linux
     goarch:
       - amd64
 
   - id: windows
-    ldflags: -s -w -X github.com/indes/flowerss-bot/config.version={{.Version}} -X github.com/indes/flowerss-bot/config.date={{.Date}} -X github.com/indes/flowerss-bot/config.commit={{ .ShortCommit }}
+    ldflags: -s -w -X github.com/indes/flowerss-bot/internal/config.version={{.Version}} -X github.com/indes/flowerss-bot/internal/config.date={{.Date}} -X github.com/indes/flowerss-bot/internal/config.commit={{ .ShortCommit }}
     goos:
       - windows
     goarch:
