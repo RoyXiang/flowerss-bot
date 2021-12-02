@@ -33,24 +33,27 @@ func (s *Subscribe) AfterDelete(tx *gorm.DB) (err error) {
 	return
 }
 
-func RegistFeed(userID int64, sourceID uint) error {
-	var subscribe Subscribe
-
-	if err := db.Where("user_id=? and source_id=?", userID, sourceID).First(&subscribe).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			subscribe.UserID = userID
-			subscribe.SourceID = sourceID
-			subscribe.EnableNotification = 1
-			subscribe.EnableTelegraph = 1
-			subscribe.Interval = config.UpdateInterval
-			subscribe.WaitTime = config.UpdateInterval
-			if db.Create(&subscribe).Error == nil {
-				return nil
-			}
-		}
-		return err
+func RegistFeed(userID int64, feedUrl string) (source *Source, err error) {
+	source, err = FindOrNewSourceByUrl(feedUrl)
+	if err != nil {
+		return
 	}
-	return nil
+
+	var subscribe Subscribe
+	err = db.Where("user_id = ? and source_id = ?", userID, source.ID).First(&subscribe).Error
+	if err == nil || !errors.Is(err, gorm.ErrRecordNotFound) {
+		return
+	}
+
+	subscribe.UserID = userID
+	subscribe.SourceID = source.ID
+	subscribe.EnableNotification = 1
+	subscribe.EnableTelegraph = 1
+	subscribe.Interval = config.UpdateInterval
+	subscribe.WaitTime = config.UpdateInterval
+
+	err = db.Create(&subscribe).Error
+	return
 }
 
 func GetSubscribeByUserIDAndSourceID(userID int64, sourceID uint) (*Subscribe, error) {

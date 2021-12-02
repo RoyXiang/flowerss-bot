@@ -967,12 +967,7 @@ func importOpmlFile(m *tb.Message, userID int64, url string) {
 	var successImportList []Outline
 
 	for _, outline := range outlines {
-		source, err := model.FindOrNewSourceByUrl(outline.XMLURL)
-		if err != nil {
-			failImportList = append(failImportList, outline)
-			continue
-		}
-		err = model.RegistFeed(userID, source.ID)
+		source, err := model.RegistFeed(userID, outline.XMLURL)
 		if err != nil {
 			failImportList = append(failImportList, outline)
 			continue

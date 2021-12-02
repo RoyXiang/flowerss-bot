@@ -32,21 +32,20 @@ func (s *Source) AfterDelete(tx *gorm.DB) error {
 
 func (s *Source) appendContents(items []*rss.Item) error {
 	var contents []Content
-	hasTorrent := false
 	for _, item := range items {
 		c, _ := getContentByFeedItem(s, item)
 		if c.TorrentUrl != "" {
-			hasTorrent = true
-			break
+			return nil
 		}
 		contents = append(contents, c)
 	}
-	if !hasTorrent {
-		s.Content = contents
-		// 开启task更新
-		s.ErrorCount = 0
+
+	s.Content = contents
+	// 开启task更新
+	s.ErrorCount = 0
+	if err := db.Save(&s).Error; err != nil {
+		return err
 	}
-	db.Save(&s)
 	return nil
 }
 
@@ -90,35 +89,38 @@ func fetchFunc(url string) (resp *http.Response, err error) {
 func FindOrNewSourceByUrl(url string) (*Source, error) {
 	var source Source
 
-	if err := db.Where("link=?", url).First(&source).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			source.Link = url
-
-			// parsing task
-			feed, err := rss.FetchByFunc(fetchFunc, url)
-
-			if err != nil {
-				return nil, fmt.Errorf("Feed 抓取错误 %v", err)
-			}
-
-			source.Title = feed.Title
-			// 避免task更新
-			source.ErrorCount = config.ErrorThreshold + 1
-
-			// Get contents and insert
-			items := feed.Items
-			sort.SliceStable(items, func(i, j int) bool {
-				return items[i].Date.Before(items[j].Date)
-			})
-			db.Create(&source)
-			go func() {
-				_ = source.appendContents(items)
-			}()
-			return &source, nil
-		}
+	err := db.Where("link = ?", url).First(&source).Error
+	if err == nil {
+		return &source, err
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
 
+	// parsing task
+	feed, err := rss.FetchByFunc(fetchFunc, url)
+	if err != nil {
+		return nil, fmt.Errorf("Feed 抓取错误 %v", err)
+	}
+
+	source.Title = feed.Title
+	source.Link = url
+	// 避免task更新
+	source.ErrorCount = config.ErrorThreshold + 1
+
+	// Get contents and insert
+	items := feed.Items
+	sort.SliceStable(items, func(i, j int) bool {
+		return items[i].Date.Before(items[j].Date)
+	})
+
+	err = db.Create(&source).Error
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		_ = source.appendContents(items)
+	}()
 	return &source, nil
 }
 

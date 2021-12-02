@@ -48,16 +48,10 @@ func getUserHtml(user, chat *tb.Chat, defaultText string) (text string) {
 func registerFeed(chat, user *tb.Chat, url string) {
 	msg, err := B.Send(chat, "处理中...")
 
-	source, err := model.FindOrNewSourceByUrl(url)
-	if err != nil {
-		_, _ = B.Edit(msg, fmt.Sprintf("%s，订阅失败", err))
-		return
-	}
-
-	err = model.RegistFeed(user.ID, source.ID)
+	source, err := model.RegistFeed(user.ID, url)
 	zap.S().Infof("%d for %d subscribe [%d]%s %s", chat.ID, user.ID, source.ID, source.Title, source.Link)
 	if err != nil {
-		_, _ = B.Edit(msg, "订阅失败")
+		_, _ = B.Edit(msg, fmt.Sprintf("订阅失败：%s", err))
 		return
 	}
 
@@ -83,11 +77,6 @@ func registerFeed(chat, user *tb.Chat, url string) {
 			InlineKeyboard: keyboard,
 		},
 	)
-}
-
-//SendError send error user
-func SendError(c *tb.Chat) {
-	_, _ = B.Send(c, "请输入正确的指令！")
 }
 
 //BroadcastNews send new contents message to subscriber
