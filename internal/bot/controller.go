@@ -20,6 +20,13 @@ import (
 	tb "gopkg.in/tucnak/telebot.v2"
 )
 
+const (
+	actionToggleNotice    = "toggleNotice"
+	actionToggleTelegraph = "toggleTelegraph"
+	actionToggleDownload  = "toggleDownload"
+	actionToggleUpdate    = "toggleUpdate"
+)
+
 var (
 	feedSettingTmpl = `
 订阅<b>设置</b>
@@ -29,8 +36,10 @@ var (
 [抓取更新] {{if ge .source.ErrorCount .Count }}暂停{{else if lt .source.ErrorCount .Count }}抓取中{{end}}
 [抓取频率] {{ .sub.Interval }}分钟
 [通知] {{if eq .sub.EnableNotification 0}}关闭{{else if eq .sub.EnableNotification 1}}开启{{end}}
+[下载任务] {{if eq .sub.EnableDownload 0}}关闭{{else if eq .sub.EnableTelegraph 1}}开启{{end}}
 [Telegraph] {{if eq .sub.EnableTelegraph 0}}关闭{{else if eq .sub.EnableTelegraph 1}}开启{{end}}
 [Tag] {{if .sub.Tag}}{{ .sub.Tag }}{{else}}无{{end}}
+[Webhook] {{ .sub.Webhook }}
 `
 )
 
@@ -68,11 +77,22 @@ func toggleCtrlButtons(c *tb.Callback, action string) {
 	_, _ = t.Parse(feedSettingTmpl)
 
 	switch action {
-	case "toggleNotice":
+	case actionToggleNotice:
 		err = sub.ToggleNotification()
-	case "toggleTelegraph":
+	case actionToggleTelegraph:
 		err = sub.ToggleTelegraph()
-	case "toggleUpdate":
+	case actionToggleDownload:
+		err = sub.ToggleDownload()
+		if sub.EnableDownload == 1 {
+			user, err := model.FindOrCreateUserByTelegramID(sub.UserID)
+			if err != nil || user.Token == "" {
+				_ = B.Respond(c, &tb.CallbackResponse{
+					Text: "请先通过 /set_token 设置 token",
+				})
+				return
+			}
+		}
+	case actionToggleUpdate:
 		err = source.ToggleEnabled()
 	}
 
@@ -327,10 +347,13 @@ func setSubTagBtnCtr(c *tb.Callback) {
 }
 
 func genFeedSetBtn(c *tb.Callback, sub *model.Subscribe, source *model.Source) [][]tb.InlineButton {
-	setSubTagKey := tb.InlineButton{
-		Unique: "set_set_sub_tag_btn",
-		Text:   "标签设置",
+	toggleDownloadKey := tb.InlineButton{
+		Unique: "set_toggle_download_btn",
+		Text:   "开启下载",
 		Data:   c.Data,
+	}
+	if sub.EnableDownload == 1 {
+		toggleDownloadKey.Text = "关闭下载"
 	}
 
 	toggleNoticeKey := tb.InlineButton{
@@ -362,28 +385,32 @@ func genFeedSetBtn(c *tb.Callback, sub *model.Subscribe, source *model.Source) [
 	}
 
 	feedSettingKeys := [][]tb.InlineButton{
-		[]tb.InlineButton{
+		{
 			toggleEnabledKey,
 			toggleNoticeKey,
 		},
-		[]tb.InlineButton{
+		{
 			toggleTelegraphKey,
-			setSubTagKey,
+			toggleDownloadKey,
 		},
 	}
 	return feedSettingKeys
 }
 
 func setToggleNoticeBtnCtr(c *tb.Callback) {
-	toggleCtrlButtons(c, "toggleNotice")
+	toggleCtrlButtons(c, actionToggleNotice)
 }
 
 func setToggleTelegraphBtnCtr(c *tb.Callback) {
-	toggleCtrlButtons(c, "toggleTelegraph")
+	toggleCtrlButtons(c, actionToggleTelegraph)
+}
+
+func setToggleDownloadBtnCtr(c *tb.Callback) {
+	toggleCtrlButtons(c, actionToggleDownload)
 }
 
 func setToggleUpdateBtnCtr(c *tb.Callback) {
-	toggleCtrlButtons(c, "toggleUpdate")
+	toggleCtrlButtons(c, actionToggleUpdate)
 }
 
 func unsubCmdCtr(m *tb.Message) {

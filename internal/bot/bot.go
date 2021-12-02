@@ -117,6 +117,8 @@ func setHandle() {
 
 	B.Handle(&tb.InlineButton{Unique: "set_toggle_telegraph_btn"}, setToggleTelegraphBtnCtr)
 
+	B.Handle(&tb.InlineButton{Unique: "set_toggle_download_btn"}, setToggleDownloadBtnCtr)
+
 	B.Handle(&tb.InlineButton{Unique: "set_toggle_update_btn"}, setToggleUpdateBtnCtr)
 
 	B.Handle(&tb.InlineButton{Unique: "set_set_sub_tag_btn"}, setSubTagBtnCtr)

@@ -15,6 +15,7 @@ type Subscribe struct {
 	SourceID           uint  `gorm:"index"`
 	EnableNotification int
 	EnableTelegraph    int
+	EnableDownload     int
 	Tag                string
 	Webhook            string
 	Interval           int
@@ -148,6 +149,15 @@ func (s *Subscribe) ToggleTelegraph() error {
 		s.EnableTelegraph = 1
 	} else {
 		s.EnableTelegraph = 0
+	}
+	return nil
+}
+
+func (s *Subscribe) ToggleDownload() error {
+	if s.EnableDownload != 1 {
+		s.EnableDownload = 1
+	} else {
+		s.EnableDownload = 0
 	}
 	return nil
 }

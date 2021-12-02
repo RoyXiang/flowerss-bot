@@ -171,6 +171,28 @@ func BroadcastSourceError(source *model.Source) {
 	}
 }
 
+// AddPutIoTransfers add transfer tasks on Put.io
+func AddPutIoTransfers(subs []*model.Subscribe, contents []*model.Content) {
+	urlMap := map[string]string{}
+	for _, content := range contents {
+		if content.TorrentUrl == "" {
+			continue
+		}
+		urlMap[content.TorrentUrl] = content.GetTriggerId()
+	}
+	if len(urlMap) == 0 {
+		return
+	}
+
+	for _, sub := range subs {
+		user, err := model.FindOrCreateUserByTelegramID(sub.UserID)
+		if err != nil || user.Token == "" {
+			continue
+		}
+		AddPutIoTransfer(user.Token, urlMap)
+	}
+}
+
 type webhookBody struct {
 	Title string   `json:"title"`
 	Guid  string   `json:"guid"`
