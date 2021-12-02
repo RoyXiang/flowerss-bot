@@ -4,9 +4,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/indes/flowerss-bot/bot/fsm"
-	"github.com/indes/flowerss-bot/config"
-	"github.com/indes/flowerss-bot/util"
+	"github.com/indes/flowerss-bot/internal/bot/fsm"
+	"github.com/indes/flowerss-bot/internal/config"
+	"github.com/indes/flowerss-bot/internal/util"
+
 	"go.uber.org/zap"
 	tb "gopkg.in/tucnak/telebot.v2"
 )
@@ -79,27 +80,27 @@ func Start() {
 func setCommands() {
 	// 设置bot命令提示信息
 	commands := []tb.Command{
-		{"start", "开始使用"},
-		{"list", "查看当前订阅的RSS源"},
-		{"sub", "[url] 订阅RSS源 (url 为可选)"},
-		{"unsub", "[url] 退订RSS源 (url 为可选)"},
-		{"unsub_all", "退订所有rss源"},
+		{Text: "start", Description: "开始使用"},
+		{Text: "list", Description: "查看当前订阅的RSS源"},
+		{Text: "sub", Description: "[url] 订阅RSS源 (url 为可选)"},
+		{Text: "unsub", Description: "[url] 退订RSS源 (url 为可选)"},
+		{Text: "unsub_all", Description: "退订所有rss源"},
 
-		{"set", "对RSS订阅进行设置"},
-		{"set_feed_tag", "[sub id] [tag1] [tag2] 设置RSS订阅的标签 (最多设置三个tag，以空格分隔)"},
-		{"set_interval", "[interval] [sub id] 设置RSS订阅的抓取间隔 (可同时对多个sub id进行设置，以空格分隔)"},
-		{"set_webhook", "[sub id] [webhook] 设置RSS订阅的webhook"},
-		{"set_token", "[token] 设置Put.io的token"},
+		{Text: "set", Description: "对RSS订阅进行设置"},
+		{Text: "set_feed_tag", Description: "[sub id] [tag1] [tag2] 设置RSS订阅的标签 (最多设置三个tag，以空格分隔)"},
+		{Text: "set_interval", Description: "[interval] [sub id] 设置RSS订阅的抓取间隔 (可同时对多个sub id进行设置，以空格分隔)"},
+		{Text: "set_webhook", Description: "[sub id] [webhook] 设置RSS订阅的webhook"},
+		{Text: "set_token", Description: "[token] 设置Put.io的token"},
 
-		{"export", "导出订阅为OPML文件"},
-		{"import", "从OPML文件导入订阅"},
+		{Text: "export", Description: "导出订阅为OPML文件"},
+		{Text: "import", Description: "从OPML文件导入订阅"},
 
-		{"check", "检查RSS订阅的当前状态"},
-		{"pause_all", "停止抓取订阅更新"},
-		{"active_all", "开启抓取订阅更新"},
+		{Text: "check", Description: "检查RSS订阅的当前状态"},
+		{Text: "pause_all", Description: "停止抓取订阅更新"},
+		{Text: "active_all", Description: "开启抓取订阅更新"},
 
-		{"help", "使用帮助"},
-		{"version", "bot版本"},
+		{Text: "help", Description: "使用帮助"},
+		{Text: "version", Description: "bot版本"},
 	}
 
 	zap.S().Debugf("set bot command %+v", commands)

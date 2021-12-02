@@ -4,7 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/indes/flowerss-bot/config"
+	"github.com/indes/flowerss-bot/internal/config"
+
 	"go.uber.org/zap"
 	"golang.org/x/net/proxy"
 )

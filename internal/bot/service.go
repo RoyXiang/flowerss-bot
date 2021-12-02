@@ -14,13 +14,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/indes/flowerss-bot/config"
-	"github.com/indes/flowerss-bot/model"
-	"github.com/indes/flowerss-bot/util"
+	"github.com/indes/flowerss-bot/internal/config"
+	"github.com/indes/flowerss-bot/internal/model"
+	"github.com/indes/flowerss-bot/internal/util"
+
 	"github.com/putdotio/go-putio/putio"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
-
 	tb "gopkg.in/tucnak/telebot.v2"
 )
 
@@ -82,8 +82,8 @@ func registerFeed(chat, user *tb.Chat, url string) {
 //BroadcastNews send new contents message to subscriber
 func BroadcastNews(source *model.Source, subs []*model.Subscribe, contents []*model.Content) {
 	zap.S().Infow("broadcast news",
-		"feed id", source.ID,
-		"feed title", source.Title,
+		"fetcher id", source.ID,
+		"fetcher title", source.Title,
 		"subscriber count", len(subs),
 		"new contents", len(contents),
 	)
@@ -158,7 +158,7 @@ func BroadcastNews(source *model.Source, subs []*model.Subscribe, contents []*mo
 	}
 }
 
-// BroadcastSourceError send feed updata error message to subscribers
+// BroadcastSourceError send fetcher updata error message to subscribers
 func BroadcastSourceError(source *model.Source) {
 	subs := model.GetSubscriberBySource(source)
 	var u tb.User

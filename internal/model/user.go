@@ -28,7 +28,7 @@ func SaveTokenByUserId(userId int64, token string) error {
 	return db.Save(user).Error
 }
 
-// GetSubSourceMap get user subscribe and feed source
+// GetSubSourceMap get user subscribe and fetcher source
 func (user *User) GetSubSourceMap() (map[Subscribe]Source, error) {
 	m := make(map[Subscribe]Source)
 

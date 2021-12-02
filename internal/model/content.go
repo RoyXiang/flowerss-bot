@@ -8,16 +8,16 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/SlyMarbo/rss"
-	"github.com/indes/flowerss-bot/config"
-	"github.com/indes/flowerss-bot/tgraph"
-	"github.com/indes/flowerss-bot/util"
-	"gorm.io/gorm"
+	"github.com/indes/flowerss-bot/internal/config"
+	"github.com/indes/flowerss-bot/internal/tgraph"
+	"github.com/indes/flowerss-bot/internal/util"
 
+	"github.com/SlyMarbo/rss"
 	parser "github.com/j-muller/go-torrent-parser"
+	"gorm.io/gorm"
 )
 
-// Content feed content
+// Content fetcher content
 type Content struct {
 	SourceID     uint
 	HashID       string `gorm:"primary_key"`
@@ -110,7 +110,7 @@ func getContentByFeedItem(source *Source, item *rss.Item) (Content, error) {
 	return c, nil
 }
 
-// GenContentAndCheckByFeedItem generate content by feed item
+// GenContentAndCheckByFeedItem generate content by fetcher item
 func GenContentAndCheckByFeedItem(s *Source, item *rss.Item) (*Content, bool, error) {
 	var (
 		content   Content

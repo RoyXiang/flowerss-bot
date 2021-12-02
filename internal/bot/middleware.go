@@ -2,9 +2,9 @@ package bot
 
 import (
 	"encoding/json"
-	"github.com/pkg/errors"
 	"strconv"
 
+	"github.com/pkg/errors"
 	tb "gopkg.in/tucnak/telebot.v2"
 )
 

@@ -10,9 +10,10 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/indes/flowerss-bot/internal/config"
+	"github.com/indes/flowerss-bot/internal/util"
+
 	"github.com/SlyMarbo/rss"
-	"github.com/indes/flowerss-bot/config"
-	"github.com/indes/flowerss-bot/util"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )

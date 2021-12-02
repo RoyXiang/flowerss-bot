@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/indes/flowerss-bot/internal/config"
+	"github.com/indes/flowerss-bot/internal/log"
+
 	"github.com/cloudquery/sqlite"
-	"github.com/indes/flowerss-bot/config"
-	"github.com/indes/flowerss-bot/log"
 	"go.uber.org/zap"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
