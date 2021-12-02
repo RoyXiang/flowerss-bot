@@ -717,7 +717,10 @@ func setTokenCmdCtr(m *tb.Message) {
 		_, _ = B.Send(m.Chat, fmt.Sprintf("%s保存token失败", text))
 		return
 	}
-	_, _ = B.Send(m.Chat, fmt.Sprintf("%s成功保存了 %s 的 token", text, info.Username))
+	_, _ = B.Send(m.Chat, fmt.Sprintf("%s成功保存了 %s 的 token", text, info.Username), &tb.SendOptions{
+		DisableWebPagePreview: true,
+		ParseMode:             tb.ModeHTML,
+	})
 }
 
 func setIntervalCmdCtr(m *tb.Message) {
