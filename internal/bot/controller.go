@@ -497,34 +497,71 @@ func unsubCmdCtr(m *tb.Message) {
 		})
 		zap.S().Infof("%d unsubscribe [%d]%s %s", user.ID, source.ID, source.Title, source.Link)
 	} else {
-		subs, err := model.GetSubsByUserID(user.ID)
+		msg, _ := B.Send(m.Chat, "处理中...")
+		unsubFeedItemsCurrentPage(msg, user, 1)
+	}
+}
+
+func unsubFeedItemPageCtr(c *tb.Callback) {
+	data := strings.Split(c.Data, ":")
+	if len(data) != 2 {
+		_, _ = B.Edit(c.Message, "内部错误：回调数据不正确")
+		return
+	}
+
+	user, err := getMentionedUser(c.Message, data[0], c.Sender)
+	if err != nil {
+		_ = B.Respond(c, &tb.CallbackResponse{
+			Text: err.Error(),
+		})
+		return
+	}
+
+	page, _ := strconv.Atoi(data[1])
+	unsubFeedItemsCurrentPage(c.Message, user, page)
+}
+
+func unsubFeedItemsCurrentPage(m *tb.Message, user *tb.Chat, page int) {
+	subs, hasPrev, hasNext, _ := model.GetSubsByUserIdByPage(user.ID, page, limitPerPage)
+
+	var unsubFeedItemBtns [][]tb.InlineButton
+	for _, sub := range subs {
+		source, err := model.GetSourceById(sub.SourceID)
 		if err != nil {
-			_, _ = B.Send(m.Chat, "内部错误：查询订阅列表失败")
-			return
+			continue
 		}
 
-		var unsubFeedItemBtns [][]tb.InlineButton
-		for _, sub := range subs {
-			source, err := model.GetSourceById(sub.SourceID)
-			if err != nil {
-				continue
-			}
+		unsubFeedItemBtns = append(unsubFeedItemBtns, []tb.InlineButton{{
+			Unique: "unsub_feed_item_btn",
+			Text:   fmt.Sprintf("[%d] %s", sub.SourceID, source.Title),
+			Data:   fmt.Sprintf("%d:%d:%d", sub.UserID, sub.ID, source.ID),
+		}})
+	}
 
-			unsubFeedItemBtns = append(unsubFeedItemBtns, []tb.InlineButton{{
-				Unique: "unsub_feed_item_btn",
-				Text:   fmt.Sprintf("[%d] %s", sub.SourceID, source.Title),
-				Data:   fmt.Sprintf("%d:%d:%d", sub.UserID, sub.ID, source.ID),
-			}})
-		}
-		if len(unsubFeedItemBtns) <= 0 {
-			_, _ = B.Send(m.Chat, "订阅列表为空")
-			return
-		}
-
-		_, _ = B.Send(m.Chat, "请选择你要退订的源", &tb.ReplyMarkup{
-			InlineKeyboard: unsubFeedItemBtns,
+	var lastRow []tb.InlineButton
+	if hasPrev {
+		lastRow = append(lastRow, tb.InlineButton{
+			Unique: "unsub_feed_item_page",
+			Text:   "上一页",
+			Data:   fmt.Sprintf("%d:%d", user.ID, page-1),
 		})
 	}
+	lastRow = append(lastRow, tb.InlineButton{
+		Unique: "cancel_btn",
+		Text:   "取消",
+	})
+	if hasNext {
+		lastRow = append(lastRow, tb.InlineButton{
+			Unique: "unsub_feed_item_page",
+			Text:   "下一页",
+			Data:   fmt.Sprintf("%d:%d", user.ID, page+1),
+		})
+	}
+	unsubFeedItemBtns = append(unsubFeedItemBtns, lastRow)
+
+	_, _ = B.Edit(m, "请选择你要退订的源", &tb.ReplyMarkup{
+		InlineKeyboard: unsubFeedItemBtns,
+	})
 }
 
 func unsubFeedItemBtnCtr(c *tb.Callback) {

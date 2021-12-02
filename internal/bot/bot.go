@@ -134,6 +134,8 @@ func setHandle() {
 
 	B.Handle(&tb.InlineButton{Unique: "unsub_feed_item_btn"}, unsubFeedItemBtnCtr)
 
+	B.Handle(&tb.InlineButton{Unique: "unsub_feed_item_page"}, unsubFeedItemPageCtr)
+
 	B.Handle(&tb.InlineButton{Unique: "cancel_btn"}, cancelBtnCtr)
 
 	B.Handle("/start", startCmdCtr)
