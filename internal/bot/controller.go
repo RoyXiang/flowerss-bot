@@ -52,7 +52,9 @@ func toggleCtrlButtons(c *tb.Callback, action string) {
 
 	_, err := getMentionedUser(c.Message, data[0], c.Sender)
 	if err != nil {
-		_, _ = B.Edit(c.Message, err.Error())
+		_ = B.Respond(c, &tb.CallbackResponse{
+			Text: err.Error(),
+		})
 		return
 	}
 
@@ -277,7 +279,9 @@ func setFeedItemBtnCtr(c *tb.Callback) {
 
 	user, err := getMentionedUser(c.Message, data[0], c.Sender)
 	if err != nil {
-		_, _ = B.Edit(c.Message, err.Error())
+		_ = B.Respond(c, &tb.CallbackResponse{
+			Text: err.Error(),
+		})
 		return
 	}
 
@@ -319,7 +323,9 @@ func setSubTagBtnCtr(c *tb.Callback) {
 
 	user, err := getMentionedUser(c.Message, data[0], c.Sender)
 	if err != nil {
-		_, _ = B.Edit(c.Message, err.Error())
+		_ = B.Respond(c, &tb.CallbackResponse{
+			Text: err.Error(),
+		})
 		return
 	}
 
@@ -478,7 +484,9 @@ func unsubFeedItemBtnCtr(c *tb.Callback) {
 	}
 	user, err := getMentionedUser(c.Message, data[0], c.Sender)
 	if err != nil {
-		_, _ = B.Edit(c.Message, err.Error())
+		_ = B.Respond(c, &tb.CallbackResponse{
+			Text: err.Error(),
+		})
 		return
 	}
 	sourceID, _ := strconv.Atoi(data[2])
@@ -548,7 +556,9 @@ func unsubAllConfirmBtnCtr(c *tb.Callback) {
 	}
 	user, err := getMentionedUser(c.Message, c.Data, c.Sender)
 	if err != nil {
-		_, _ = B.Edit(c.Message, err.Error())
+		_ = B.Respond(c, &tb.CallbackResponse{
+			Text: err.Error(),
+		})
 		return
 	}
 
