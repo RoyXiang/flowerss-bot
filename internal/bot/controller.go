@@ -133,6 +133,19 @@ func subCmdCtr(m *tb.Message) {
 		_, _ = B.Send(m.Chat, err.Error())
 		return
 	}
+
+	if url == "" {
+		if user.ID == m.Chat.ID {
+			_, err := B.Send(m.Chat, "请回复RSS URL", &tb.ReplyMarkup{ForceReply: true})
+			if err == nil {
+				UserState[m.Chat.ID] = fsm.Sub
+			}
+		} else {
+			_, _ = B.Send(m.Chat, "频道订阅请使用' /sub @ChannelID URL ' 命令")
+		}
+		return
+	}
+
 	registerFeed(m.Chat, user, url)
 }
 
