@@ -32,26 +32,25 @@ var (
 	feedSettingTmpl = `
 订阅<b>设置</b>
 [id] {{ .sub.ID }}
-[标题] {{ .source.Title }}
-[Link] {{.source.Link }}
+[标题] <a href="{{.source.Link }}">{{ .source.Title }}</a>
 [抓取更新] {{if ge .source.ErrorCount .Count }}暂停{{else if lt .source.ErrorCount .Count }}抓取中{{end}}
 [抓取频率] {{ .sub.Interval }}分钟
 [通知] {{if eq .sub.EnableNotification 0}}关闭{{else if eq .sub.EnableNotification 1}}开启{{end}}
-[下载任务] {{if eq .sub.EnableDownload 0}}关闭{{else if eq .sub.EnableTelegraph 1}}开启{{end}}
+[下载任务] {{if eq .sub.EnableDownload 0}}关闭{{else if eq .sub.EnableDownload 1}}开启{{end}}
 [Telegraph] {{if eq .sub.EnableTelegraph 0}}关闭{{else if eq .sub.EnableTelegraph 1}}开启{{end}}
 [Tag] {{if .sub.Tag}}{{ .sub.Tag }}{{else}}无{{end}}
-[Webhook] {{ .sub.Webhook }}
+{{if .sub.Webhook}}[Webhook] {{ .sub.Webhook }}{{end}}
 `
 )
 
 func toggleCtrlButtons(c *tb.Callback, action string) {
 	data := strings.Split(c.Data, ":")
-	if len(data) != 2 {
+	if len(data) < 2 {
 		_, _ = B.Edit(c.Message, "内部错误：回调数据不正确")
 		return
 	}
 
-	_, err := getMentionedUser(c.Message, data[0], c.Sender)
+	user, err := getMentionedUser(c.Message, data[0], c.Sender)
 	if err != nil {
 		_ = B.Respond(c, &tb.CallbackResponse{
 			Text: err.Error(),
@@ -105,19 +104,24 @@ func toggleCtrlButtons(c *tb.Callback, action string) {
 		})
 		return
 	}
-
 	sub.Save()
 
 	text := new(bytes.Buffer)
-
-	_ = t.Execute(text, map[string]interface{}{"source": source, "sub": sub, "Count": config.ErrorThreshold})
+	_ = t.Execute(text, map[string]interface{}{
+		"source": source,
+		"sub":    sub,
+		"Count":  config.ErrorThreshold,
+	})
 	_ = B.Respond(c, &tb.CallbackResponse{
 		Text: "修改成功",
 	})
-	_, _ = B.Edit(c.Message, text.String(), &tb.SendOptions{
-		ParseMode: tb.ModeHTML,
+
+	textStr := fmt.Sprintf("%s%s", getUserHtml(user, c.Message.Chat, ""), strings.TrimSpace(text.String()))
+	_, _ = B.Edit(c.Message, textStr, &tb.SendOptions{
+		DisableWebPagePreview: true,
+		ParseMode:             tb.ModeHTML,
 	}, &tb.ReplyMarkup{
-		InlineKeyboard: genFeedSetBtn(c, sub, source),
+		InlineKeyboard: genFeedSetBtn(c.Data, sub, source),
 	})
 }
 
@@ -264,7 +268,7 @@ func setCmdCtr(m *tb.Message) {
 
 func setFeedItemPageCtr(c *tb.Callback) {
 	data := strings.Split(c.Data, ":")
-	if len(data) != 2 {
+	if len(data) < 2 {
 		_, _ = B.Edit(c.Message, "内部错误：回调数据不正确")
 		return
 	}
@@ -291,7 +295,7 @@ func setFeedItemsCurrentPage(m *tb.Message, user *tb.Chat, page int) {
 		setFeedItemBtns = append(setFeedItemBtns, []tb.InlineButton{{
 			Unique: "set_feed_item_btn",
 			Text:   fmt.Sprintf("[%d] %s", source.ID, source.Title),
-			Data:   fmt.Sprintf("%d:%d", user.ID, source.ID),
+			Data:   fmt.Sprintf("%d:%d:%d", user.ID, source.ID, page),
 		}})
 	}
 
@@ -323,7 +327,7 @@ func setFeedItemsCurrentPage(m *tb.Message, user *tb.Chat, page int) {
 
 func setFeedItemBtnCtr(c *tb.Callback) {
 	data := strings.Split(c.Data, ":")
-	if len(data) != 2 {
+	if len(data) < 2 {
 		_, _ = B.Edit(c.Message, "内部错误：回调数据不正确")
 		return
 	}
@@ -352,22 +356,24 @@ func setFeedItemBtnCtr(c *tb.Callback) {
 	t := template.New("setting template")
 	_, _ = t.Parse(feedSettingTmpl)
 	text := new(bytes.Buffer)
-	_ = t.Execute(text, map[string]interface{}{"source": source, "sub": sub, "Count": config.ErrorThreshold})
+	_ = t.Execute(text, map[string]interface{}{
+		"source": source,
+		"sub":    sub,
+		"Count":  config.ErrorThreshold,
+	})
 
-	_, _ = B.Edit(
-		c.Message,
-		text.String(),
-		&tb.SendOptions{
-			ParseMode: tb.ModeHTML,
-		}, &tb.ReplyMarkup{
-			InlineKeyboard: genFeedSetBtn(c, sub, source),
-		},
-	)
+	textStr := fmt.Sprintf("%s%s", getUserHtml(user, c.Message.Chat, ""), strings.TrimSpace(text.String()))
+	_, _ = B.Edit(c.Message, textStr, &tb.SendOptions{
+		DisableWebPagePreview: true,
+		ParseMode:             tb.ModeHTML,
+	}, &tb.ReplyMarkup{
+		InlineKeyboard: genFeedSetBtn(c.Data, sub, source),
+	})
 }
 
 func setSubTagBtnCtr(c *tb.Callback) {
 	data := strings.Split(c.Data, ":")
-	if len(data) != 2 {
+	if len(data) < 2 {
 		_, _ = B.Edit(c.Message, "内部错误：回调数据不正确")
 		return
 	}
@@ -403,11 +409,17 @@ func setSubTagBtnCtr(c *tb.Callback) {
 	)
 }
 
-func genFeedSetBtn(c *tb.Callback, sub *model.Subscribe, source *model.Source) [][]tb.InlineButton {
+func genFeedSetBtn(data string, sub *model.Subscribe, source *model.Source) [][]tb.InlineButton {
+	setSubTagKey := tb.InlineButton{
+		Unique: "set_set_sub_tag_btn",
+		Text:   "标签设置",
+		Data:   data,
+	}
+
 	toggleDownloadKey := tb.InlineButton{
 		Unique: "set_toggle_download_btn",
 		Text:   "开启下载",
-		Data:   c.Data,
+		Data:   data,
 	}
 	if sub.EnableDownload == 1 {
 		toggleDownloadKey.Text = "关闭下载"
@@ -416,7 +428,7 @@ func genFeedSetBtn(c *tb.Callback, sub *model.Subscribe, source *model.Source) [
 	toggleNoticeKey := tb.InlineButton{
 		Unique: "set_toggle_notice_btn",
 		Text:   "开启通知",
-		Data:   c.Data,
+		Data:   data,
 	}
 	if sub.EnableNotification == 1 {
 		toggleNoticeKey.Text = "关闭通知"
@@ -425,7 +437,7 @@ func genFeedSetBtn(c *tb.Callback, sub *model.Subscribe, source *model.Source) [
 	toggleTelegraphKey := tb.InlineButton{
 		Unique: "set_toggle_telegraph_btn",
 		Text:   "开启 Telegraph 转码",
-		Data:   c.Data,
+		Data:   data,
 	}
 	if sub.EnableTelegraph == 1 {
 		toggleTelegraphKey.Text = "关闭 Telegraph 转码"
@@ -434,11 +446,20 @@ func genFeedSetBtn(c *tb.Callback, sub *model.Subscribe, source *model.Source) [
 	toggleEnabledKey := tb.InlineButton{
 		Unique: "set_toggle_update_btn",
 		Text:   "暂停更新",
-		Data:   c.Data,
+		Data:   data,
 	}
-
 	if source.ErrorCount >= config.ErrorThreshold {
 		toggleEnabledKey.Text = "重启更新"
+	}
+
+	parts := strings.Split(data, ":")
+	if len(parts) < 3 {
+		parts[2] = "1"
+	}
+	backKey := tb.InlineButton{
+		Unique: "set_feed_item_page",
+		Text:   "返回",
+		Data:   fmt.Sprintf("%s:%s", parts[0], parts[2]),
 	}
 
 	feedSettingKeys := [][]tb.InlineButton{
@@ -448,7 +469,11 @@ func genFeedSetBtn(c *tb.Callback, sub *model.Subscribe, source *model.Source) [
 		},
 		{
 			toggleTelegraphKey,
+			setSubTagKey,
+		},
+		{
 			toggleDownloadKey,
+			backKey,
 		},
 	}
 	return feedSettingKeys
@@ -964,59 +989,28 @@ func textCtr(m *tb.Message) {
 					_, _ = B.Send(m.Chat, "请选择正确的指令！")
 					return
 				}
+
 				t := template.New("setting template")
 				_, _ = t.Parse(feedSettingTmpl)
-
-				toggleNoticeKey := tb.InlineButton{
-					Unique: "set_toggle_notice_btn",
-					Text:   "开启通知",
-				}
-				if sub.EnableNotification == 1 {
-					toggleNoticeKey.Text = "关闭通知"
-				}
-
-				toggleTelegraphKey := tb.InlineButton{
-					Unique: "set_toggle_telegraph_btn",
-					Text:   "开启 Telegraph 转码",
-				}
-				if sub.EnableTelegraph == 1 {
-					toggleTelegraphKey.Text = "关闭 Telegraph 转码"
-				}
-
-				toggleEnabledKey := tb.InlineButton{
-					Unique: "set_toggle_update_btn",
-					Text:   "暂停更新",
-				}
-
-				if source.ErrorCount >= config.ErrorThreshold {
-					toggleEnabledKey.Text = "重启更新"
-				}
-
-				feedSettingKeys := [][]tb.InlineButton{
-					[]tb.InlineButton{
-						toggleEnabledKey,
-						toggleNoticeKey,
-						toggleTelegraphKey,
-					},
-				}
-
 				text := new(bytes.Buffer)
-
-				_ = t.Execute(text, map[string]interface{}{"source": source, "sub": sub, "Count": config.ErrorThreshold})
+				_ = t.Execute(text, map[string]interface{}{
+					"source": source,
+					"sub":    sub,
+					"Count":  config.ErrorThreshold,
+				})
 
 				// send null message to remove old keyboard
 				delKeyMessage, err := B.Send(m.Chat, "processing", &tb.ReplyMarkup{ReplyKeyboardRemove: true})
 				err = B.Delete(delKeyMessage)
 
-				_, _ = B.Send(
-					m.Chat,
-					text.String(),
-					&tb.SendOptions{
-						ParseMode: tb.ModeHTML,
-					}, &tb.ReplyMarkup{
-						InlineKeyboard: feedSettingKeys,
-					},
-				)
+				data := fmt.Sprintf("%d:%d", m.Chat.ID, source.ID)
+				textStr := fmt.Sprintf("%s%s", getUserHtml(m.Chat, m.Chat, ""), strings.TrimSpace(text.String()))
+				_, _ = B.Send(m.Chat, textStr, &tb.SendOptions{
+					DisableWebPagePreview: true,
+					ParseMode:             tb.ModeHTML,
+				}, &tb.ReplyMarkup{
+					InlineKeyboard: genFeedSetBtn(data, sub, source),
+				})
 				UserState[m.Chat.ID] = fsm.None
 			}
 		}
