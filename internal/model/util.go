@@ -15,3 +15,10 @@ func genHashID(sLink string, id string) string {
 	return encoded
 
 }
+
+func getPageOffset(page, limit int) int {
+	if page <= 0 || limit <= 0 {
+		return -1
+	}
+	return (page - 1) * limit
+}

@@ -129,6 +129,28 @@ func GetSubsByUserID(userID int64) ([]Subscribe, error) {
 	return subs, nil
 }
 
+func GetSubsByUserIdByPage(userId int64, page, limit int) (subs []Subscribe, hasPrev, hasNext bool, err error) {
+	condition := &Subscribe{UserID: userId}
+
+	offset := getPageOffset(page, limit)
+	if offset < 0 {
+		db.Order("source_id").Where(condition).Find(&subs)
+		return
+	}
+
+	var count int64
+	db.Model(condition).Where(condition).Count(&count)
+	db.Offset(offset).Limit(limit).Order("source_id").Where(condition).Find(&subs)
+
+	if page > 1 {
+		hasPrev = true
+	}
+	if int64(offset)+int64(limit) < count {
+		hasNext = true
+	}
+	return
+}
+
 func GetSubscribeByID(id int) (*Subscribe, error) {
 	var sub Subscribe
 	err := db.Where("id=?  ", id).First(&sub).Error

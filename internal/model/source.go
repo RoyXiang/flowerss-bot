@@ -208,13 +208,9 @@ func (s *Source) GetNewContents() ([]*Content, error) {
 	return newContents, nil
 }
 
-func GetSourcesByUserID(userID int64) ([]Source, error) {
-	var sources []Source
-	subs, err := GetSubsByUserID(userID)
-
-	if err != nil {
-		return nil, err
-	}
+func GetSourcesByUserID(userID int64, page, limit int) (sources []Source, hasPrev, hasNext bool, err error) {
+	var subs []Subscribe
+	subs, hasPrev, hasNext, _ = GetSubsByUserIdByPage(userID, page, limit)
 
 	for _, sub := range subs {
 		var source Source
@@ -223,12 +219,8 @@ func GetSourcesByUserID(userID int64) ([]Source, error) {
 			sources = append(sources, source)
 		}
 	}
-
-	sort.SliceStable(sources, func(i, j int) bool {
-		return sources[i].ID < sources[j].ID
-	})
-
-	return sources, nil
+	err = nil
+	return
 }
 
 func GetErrorSourcesByUserID(userID int64) ([]Source, error) {

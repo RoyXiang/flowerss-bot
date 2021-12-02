@@ -25,6 +25,7 @@ const (
 	actionToggleTelegraph = "toggleTelegraph"
 	actionToggleDownload  = "toggleDownload"
 	actionToggleUpdate    = "toggleUpdate"
+	limitPerPage          = 10
 )
 
 var (
@@ -156,7 +157,7 @@ func exportCmdCtr(m *tb.Message) {
 		_, _ = B.Send(m.Chat, err.Error())
 		return
 	}
-	sourceList, err := model.GetSourcesByUserID(user.ID)
+	sourceList, _, _, err := model.GetSourcesByUserID(user.ID, 0, 0)
 	if err != nil {
 		zap.S().Errorf(err.Error())
 		_, _ = B.Send(m.Chat, fmt.Sprintf("导出失败"))
@@ -257,15 +258,31 @@ func setCmdCtr(m *tb.Message) {
 		return
 	}
 
-	sources, err := model.GetSourcesByUserID(user.ID)
-	if len(sources) <= 0 {
-		text := fmt.Sprintf("%s没有订阅源", getUserHtml(user, m.Chat, "当前"))
-		_, _ = B.Send(m.Chat, text, &tb.SendOptions{
-			DisableWebPagePreview: true,
-			ParseMode:             tb.ModeHTML,
+	msg, _ := B.Send(m.Chat, "处理中...")
+	setFeedItemsCurrentPage(msg, user, 1)
+}
+
+func setFeedItemPageCtr(c *tb.Callback) {
+	data := strings.Split(c.Data, ":")
+	if len(data) != 2 {
+		_, _ = B.Edit(c.Message, "内部错误：回调数据不正确")
+		return
+	}
+
+	user, err := getMentionedUser(c.Message, data[0], c.Sender)
+	if err != nil {
+		_ = B.Respond(c, &tb.CallbackResponse{
+			Text: err.Error(),
 		})
 		return
 	}
+
+	page, _ := strconv.Atoi(data[1])
+	setFeedItemsCurrentPage(c.Message, user, page)
+}
+
+func setFeedItemsCurrentPage(m *tb.Message, user *tb.Chat, page int) {
+	sources, hasPrev, hasNext, _ := model.GetSourcesByUserID(user.ID, page, limitPerPage)
 
 	var setFeedItemBtns [][]tb.InlineButton
 	// 配置按钮
@@ -278,7 +295,28 @@ func setCmdCtr(m *tb.Message) {
 		}})
 	}
 
-	_, _ = B.Send(m.Chat, "请选择你要设置的源", &tb.ReplyMarkup{
+	var lastRow []tb.InlineButton
+	if hasPrev {
+		lastRow = append(lastRow, tb.InlineButton{
+			Unique: "set_feed_item_page",
+			Text:   "上一页",
+			Data:   fmt.Sprintf("%d:%d", user.ID, page-1),
+		})
+	}
+	lastRow = append(lastRow, tb.InlineButton{
+		Unique: "cancel_btn",
+		Text:   "取消",
+	})
+	if hasNext {
+		lastRow = append(lastRow, tb.InlineButton{
+			Unique: "set_feed_item_page",
+			Text:   "下一页",
+			Data:   fmt.Sprintf("%d:%d", user.ID, page+1),
+		})
+	}
+	setFeedItemBtns = append(setFeedItemBtns, lastRow)
+
+	_, _ = B.Edit(m, "请选择你要设置的源", &tb.ReplyMarkup{
 		InlineKeyboard: setFeedItemBtns,
 	})
 }
@@ -558,8 +596,9 @@ func unsubAllCmdCtr(m *tb.Message) {
 	)
 }
 
-func unsubAllCancelBtnCtr(c *tb.Callback) {
-	_, _ = B.Edit(c.Message, "操作取消")
+func cancelBtnCtr(c *tb.Callback) {
+	_, _ = B.Edit(c.Message, "操作已取消。")
+	UserState[c.Message.Chat.ID] = fsm.None
 }
 
 func cancelCmdCtr(m *tb.Message) {

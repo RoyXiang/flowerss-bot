@@ -114,6 +114,8 @@ func setCommands() {
 func setHandle() {
 	B.Handle(&tb.InlineButton{Unique: "set_feed_item_btn"}, setFeedItemBtnCtr)
 
+	B.Handle(&tb.InlineButton{Unique: "set_feed_item_page"}, setFeedItemPageCtr)
+
 	B.Handle(&tb.InlineButton{Unique: "set_toggle_notice_btn"}, setToggleNoticeBtnCtr)
 
 	B.Handle(&tb.InlineButton{Unique: "set_toggle_telegraph_btn"}, setToggleTelegraphBtnCtr)
@@ -122,13 +124,17 @@ func setHandle() {
 
 	B.Handle(&tb.InlineButton{Unique: "set_toggle_update_btn"}, setToggleUpdateBtnCtr)
 
+	// Deprecated: 此回调已不再使用，保留代码回应历史消息
 	B.Handle(&tb.InlineButton{Unique: "set_set_sub_tag_btn"}, setSubTagBtnCtr)
 
 	B.Handle(&tb.InlineButton{Unique: "unsub_all_confirm_btn"}, unsubAllConfirmBtnCtr)
 
-	B.Handle(&tb.InlineButton{Unique: "unsub_all_cancel_btn"}, unsubAllCancelBtnCtr)
+	// Deprecated: 此回调已不再使用，保留代码回应历史消息
+	B.Handle(&tb.InlineButton{Unique: "unsub_all_cancel_btn"}, cancelBtnCtr)
 
 	B.Handle(&tb.InlineButton{Unique: "unsub_feed_item_btn"}, unsubFeedItemBtnCtr)
+
+	B.Handle(&tb.InlineButton{Unique: "cancel_btn"}, cancelBtnCtr)
 
 	B.Handle("/start", startCmdCtr)
 
