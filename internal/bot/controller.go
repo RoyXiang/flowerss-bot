@@ -454,7 +454,7 @@ func genFeedSetBtn(data string, sub *model.Subscribe, source *model.Source) [][]
 
 	parts := strings.Split(data, ":")
 	if len(parts) < 3 {
-		parts[2] = "1"
+		parts = append(parts, "1")
 	}
 	backKey := tb.InlineButton{
 		Unique: "set_feed_item_page",

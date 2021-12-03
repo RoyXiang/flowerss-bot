@@ -60,7 +60,7 @@ func registerFeed(chat, user *tb.Chat, url string) {
 		{
 			Unique: "set_feed_item_btn",
 			Text:   "设置",
-			Data:   fmt.Sprintf("%d:%d", user.ID, source.ID),
+			Data:   fmt.Sprintf("%d:%d:1", user.ID, source.ID),
 		},
 	}
 
