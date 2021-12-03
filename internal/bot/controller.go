@@ -650,7 +650,9 @@ func cancelBtnCtr(c *tb.Callback) {
 }
 
 func cancelCmdCtr(m *tb.Message) {
-	_, _ = B.Reply(m, "当前操作已取消。")
+	_, _ = B.Reply(m, "当前操作已取消。", &tb.ReplyMarkup{
+		ReplyKeyboardRemove: true,
+	})
 	UserState[m.Chat.ID] = fsm.None
 }
 
@@ -984,17 +986,14 @@ func textCtr(m *tb.Message) {
 					"Count":  config.ErrorThreshold,
 				})
 
-				// send null message to remove old keyboard
-				delKeyMessage, err := B.Reply(m, "processing", &tb.ReplyMarkup{ReplyKeyboardRemove: true})
-				err = B.Delete(delKeyMessage)
-
 				data := fmt.Sprintf("%d:%d", m.Chat.ID, source.ID)
 				textStr := fmt.Sprintf("%s%s", getUserHtml(m.Chat, m.Chat, ""), strings.TrimSpace(text.String()))
 				_, _ = B.Reply(m, textStr, &tb.SendOptions{
 					DisableWebPagePreview: true,
 					ParseMode:             tb.ModeHTML,
 				}, &tb.ReplyMarkup{
-					InlineKeyboard: genFeedSetBtn(data, sub, source),
+					InlineKeyboard:      genFeedSetBtn(data, sub, source),
+					ReplyKeyboardRemove: true,
 				})
 				UserState[m.Chat.ID] = fsm.None
 			}
