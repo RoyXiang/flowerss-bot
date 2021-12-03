@@ -352,15 +352,18 @@ func HasAdminType(t tb.ChatType) bool {
 
 // GetMentionFromMessage get message mention
 func GetMentionFromMessage(m *tb.Message) (mention string) {
+	var text string
 	var entities []tb.MessageEntity
 	if m.Text != "" {
+		text = m.Text
 		entities = m.Entities
 	} else {
+		text = m.Caption
 		entities = m.CaptionEntities
 	}
 	for _, entity := range entities {
 		if entity.Type == tb.EntityMention {
-			return m.Text[entity.Offset : entity.Offset+entity.Length]
+			return text[entity.Offset : entity.Offset+entity.Length]
 		}
 	}
 	return
