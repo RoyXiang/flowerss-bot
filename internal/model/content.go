@@ -31,10 +31,8 @@ type Content struct {
 }
 
 func (c *Content) GetTriggerId() string {
-	if strings.HasPrefix(c.RawID, util.PrefixMagnet) && len(c.RawID) == util.LengthMagnet {
+	if c.TorrentUrl != "" {
 		return c.RawID
-	} else if c.TorrentUrl != "" {
-		return c.TorrentUrl
 	} else if c.RawID == c.RawLink {
 		return c.RawID
 	}
@@ -67,7 +65,7 @@ func getContentByFeedItem(source *Source, item *rss.Item) (Content, error) {
 		Title:       strings.Trim(item.Title, " "),
 		Description: html, //replace all kinds of <br> tag
 		SourceID:    source.ID,
-		RawID:       strings.ToLower(item.ID),
+		RawID:       item.ID,
 		HashID:      genHashID(source.Link, item.ID),
 		RawLink:     item.Link,
 	}
@@ -94,9 +92,10 @@ func getContentByFeedItem(source *Source, item *rss.Item) (Content, error) {
 			break
 		}
 	}
-
 	if torrentUrl != "" {
-		if strings.HasPrefix(c.RawID, util.PrefixMagnet) && len(c.RawID) == util.LengthMagnet {
+		magnetLink := util.GetMagnetLink(c.RawID)
+		if magnetLink != "" {
+			c.RawID = magnetLink
 			c.TorrentUrl = torrentUrl
 		} else {
 			infoHash := getTorrentInfoHash(torrentUrl)

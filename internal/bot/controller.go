@@ -1015,7 +1015,7 @@ func textCtr(m *tb.Message) {
 
 		parts := strings.Split(m.Text, " ")
 		for _, part := range parts {
-			if strings.HasPrefix(part, util.PrefixMagnet) {
+			if strings.HasPrefix(part, util.PrefixMagnet) && len(part) >= util.LengthMagnet {
 				urlMap[part] = ""
 			}
 		}
