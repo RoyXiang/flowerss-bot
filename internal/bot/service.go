@@ -45,8 +45,10 @@ func getUserHtml(user, chat *tb.Chat, defaultText string) (text string) {
 	return
 }
 
-func registerFeed(chat, user *tb.Chat, url string) {
-	msg, err := B.Send(chat, "处理中...")
+func registerFeed(msg *tb.Message, user *tb.Chat, url string) {
+	var err error
+	chat := msg.Chat
+	msg, err = B.Reply(msg, "处理中...")
 
 	source, err := model.RegistFeed(user.ID, url)
 	zap.S().Infof("%d for %d subscribe [%d]%s %s", chat.ID, user.ID, source.ID, source.Title, source.Link)

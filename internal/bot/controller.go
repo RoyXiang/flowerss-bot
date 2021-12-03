@@ -89,7 +89,7 @@ func toggleCtrlButtons(c *tb.Callback, action string) {
 			user, err := model.FindOrCreateUserByTelegramID(sub.UserID)
 			if err != nil || user.Token == "" {
 				_ = B.Respond(c, &tb.CallbackResponse{
-					Text: "请先通过 /set_token 设置 token",
+					Text: "请先通过 /set_token 设置Put.io的token",
 				})
 				return
 			}
@@ -128,63 +128,63 @@ func toggleCtrlButtons(c *tb.Callback, action string) {
 func startCmdCtr(m *tb.Message) {
 	user, _ := model.FindOrCreateUserByTelegramID(m.Chat.ID)
 	zap.S().Infof("/start user_id: %d telegram_id: %d", user.ID, user.TelegramID)
-	_, _ = B.Send(m.Chat, fmt.Sprintf("你好，欢迎使用flowerss。"))
+	_, _ = B.Reply(m, fmt.Sprintf("你好，欢迎使用flowerss。"))
 }
 
 func subCmdCtr(m *tb.Message) {
 	url, mention := GetURLAndMentionFromMessage(m)
 	user, err := getMentionedUser(m, mention, nil)
 	if err != nil {
-		_, _ = B.Send(m.Chat, err.Error())
+		_, _ = B.Reply(m, err.Error())
 		return
 	}
 
 	if url == "" {
 		if user.ID == m.Chat.ID {
-			_, err := B.Send(m.Chat, "请回复RSS URL", &tb.ReplyMarkup{ForceReply: true})
+			_, err := B.Reply(m, "请回复RSS URL", &tb.ReplyMarkup{ForceReply: true})
 			if err == nil {
 				UserState[m.Chat.ID] = fsm.Sub
 			}
 		} else {
-			_, _ = B.Send(m.Chat, "频道订阅请使用' /sub @ChannelID URL ' 命令")
+			_, _ = B.Reply(m, "频道订阅请使用' /sub @ChannelID URL ' 命令")
 		}
 		return
 	}
 
-	registerFeed(m.Chat, user, url)
+	registerFeed(m, user, url)
 }
 
 func exportCmdCtr(m *tb.Message) {
 	mention := GetMentionFromMessage(m)
 	user, err := getMentionedUser(m, mention, nil)
 	if err != nil {
-		_, _ = B.Send(m.Chat, err.Error())
+		_, _ = B.Reply(m, err.Error())
 		return
 	}
 	sourceList, _, _, err := model.GetSourcesByUserID(user.ID, 0, 0)
 	if err != nil {
 		zap.S().Errorf(err.Error())
-		_, _ = B.Send(m.Chat, fmt.Sprintf("导出失败"))
+		_, _ = B.Reply(m, fmt.Sprintf("导出失败"))
 		return
 	}
 
 	if len(sourceList) == 0 {
-		_, _ = B.Send(m.Chat, fmt.Sprintf("订阅列表为空"))
+		_, _ = B.Reply(m, fmt.Sprintf("订阅列表为空"))
 		return
 	}
 
 	opmlStr, err := ToOPML(sourceList)
 
 	if err != nil {
-		_, _ = B.Send(m.Chat, fmt.Sprintf("导出失败"))
+		_, _ = B.Reply(m, fmt.Sprintf("导出失败"))
 		return
 	}
 	opmlFile := &tb.Document{File: tb.FromReader(strings.NewReader(opmlStr))}
 	opmlFile.FileName = fmt.Sprintf("subscriptions_%d.opml", time.Now().Unix())
-	_, err = B.Send(m.Chat, opmlFile)
+	_, err = B.Reply(m, opmlFile)
 
 	if err != nil {
-		_, _ = B.Send(m.Chat, fmt.Sprintf("导出失败"))
+		_, _ = B.Reply(m, fmt.Sprintf("导出失败"))
 		zap.S().Errorf("send opml file failed, err:%+v", err)
 	}
 }
@@ -193,18 +193,18 @@ func listCmdCtr(m *tb.Message) {
 	mention := GetMentionFromMessage(m)
 	chat, err := getMentionedUser(m, mention, nil)
 	if err != nil {
-		_, _ = B.Send(m.Chat, err.Error())
+		_, _ = B.Reply(m, err.Error())
 		return
 	}
 
 	user, err := model.FindOrCreateUserByTelegramID(chat.ID)
 	if err != nil {
-		_, _ = B.Send(m.Chat, "内部错误：无法找到对应的用户")
+		_, _ = B.Reply(m, "内部错误：无法找到对应的用户")
 		return
 	}
 	subSourceMap, err := user.GetSubSourceMap()
 	if err != nil {
-		_, _ = B.Send(m.Chat, "内部错误：无法查询用户订阅列表")
+		_, _ = B.Reply(m, "内部错误：无法查询用户订阅列表")
 		return
 	}
 
@@ -225,7 +225,7 @@ func listCmdCtr(m *tb.Message) {
 			rspMessage += fmt.Sprintf("[%d] <a href=\"%s\">%s</a>\n", sub.ID, source.Link, html.EscapeString(source.Title))
 		}
 	}
-	_, _ = B.Send(m.Chat, rspMessage, &tb.SendOptions{
+	_, _ = B.Reply(m, rspMessage, &tb.SendOptions{
 		DisableWebPagePreview: true,
 		ParseMode:             tb.ModeHTML,
 	})
@@ -235,7 +235,7 @@ func checkCmdCtr(m *tb.Message) {
 	mention := GetMentionFromMessage(m)
 	user, err := getMentionedUser(m, mention, nil)
 	if err != nil {
-		_, _ = B.Send(m.Chat, err.Error())
+		_, _ = B.Reply(m, err.Error())
 		return
 	}
 	sources, _ := model.GetErrorSourcesByUserID(user.ID)
@@ -248,7 +248,7 @@ func checkCmdCtr(m *tb.Message) {
 	} else {
 		message += "所有订阅正常"
 	}
-	_, _ = B.Send(m.Chat, message, &tb.SendOptions{
+	_, _ = B.Reply(m, message, &tb.SendOptions{
 		DisableWebPagePreview: true,
 		ParseMode:             tb.ModeHTML,
 	})
@@ -258,11 +258,11 @@ func setCmdCtr(m *tb.Message) {
 	mention := GetMentionFromMessage(m)
 	user, err := getMentionedUser(m, mention, nil)
 	if err != nil {
-		_, _ = B.Send(m.Chat, err.Error())
+		_, _ = B.Reply(m, err.Error())
 		return
 	}
 
-	msg, _ := B.Send(m.Chat, "处理中...")
+	msg, _ := B.Reply(m, "处理中...")
 	setFeedItemsCurrentPage(msg, user, 1)
 }
 
@@ -374,7 +374,7 @@ func setFeedItemBtnCtr(c *tb.Callback) {
 func setSubTagBtnCtr(c *tb.Callback) {
 	data := strings.Split(c.Data, ":")
 	if len(data) < 2 {
-		_, _ = B.Edit(c.Message, "内部错误：回调数据不正确")
+		_ = B.Respond(c, &tb.CallbackResponse{Text: "内部错误：回调数据不正确"})
 		return
 	}
 
@@ -389,24 +389,15 @@ func setSubTagBtnCtr(c *tb.Callback) {
 	sourceID, _ := strconv.Atoi(data[1])
 	sub, err := model.GetSubscribeByUserIDAndSourceID(user.ID, uint(sourceID))
 	if err != nil {
-		_, _ = B.Send(
-			c.Message.Chat,
-			"系统错误，代码04",
-		)
+		_ = B.Respond(c, &tb.CallbackResponse{Text: "系统错误，代码04"})
 		return
 	}
+
 	msg := fmt.Sprintf(
 		"请使用`/set_feed_tag %d tags`命令为该订阅设置标签，tags为需要设置的标签，以空格分隔。（最多设置三个标签） \n"+
 			"例如：`/set_feed_tag %d 科技 苹果`",
 		sub.ID, sub.ID)
-
-	_ = B.Delete(c.Message)
-
-	_, _ = B.Send(
-		c.Message.Chat,
-		msg,
-		&tb.SendOptions{ParseMode: tb.ModeMarkdown},
-	)
+	_, _ = B.Edit(c.Message, msg, &tb.SendOptions{ParseMode: tb.ModeMarkdown})
 }
 
 func genFeedSetBtn(data string, sub *model.Subscribe, source *model.Source) [][]tb.InlineButton {
@@ -499,30 +490,30 @@ func unsubCmdCtr(m *tb.Message) {
 	url, mention := GetURLAndMentionFromMessage(m)
 	user, err := getMentionedUser(m, mention, nil)
 	if err != nil {
-		_, _ = B.Send(m.Chat, err.Error())
+		_, _ = B.Reply(m, err.Error())
 		return
 	}
 
 	if url != "" {
 		source, err := model.GetSourceByUrl(url)
 		if err != nil {
-			_, _ = B.Send(m.Chat, "未订阅该RSS源")
+			_, _ = B.Reply(m, "未订阅该RSS源")
 			return
 		}
 		err = model.UnsubByUserIDAndSource(user.ID, source)
 		if err != nil {
-			_, _ = B.Send(m.Chat, fmt.Sprintf("退订失败：%s", err.Error()))
+			_, _ = B.Reply(m, fmt.Sprintf("退订失败：%s", err.Error()))
 			return
 		}
 		text := getUserHtml(user, m.Chat, "")
 		text += fmt.Sprintf("退订 <a href=\"%s\">%s</a> 成功！", source.Link, html.EscapeString(source.Title))
-		_, _ = B.Send(m.Chat, text, &tb.SendOptions{
+		_, _ = B.Reply(m, text, &tb.SendOptions{
 			DisableWebPagePreview: true,
 			ParseMode:             tb.ModeHTML,
 		})
 		zap.S().Infof("%d unsubscribe [%d]%s %s", user.ID, source.ID, source.Title, source.Link)
 	} else {
-		msg, _ := B.Send(m.Chat, "处理中...")
+		msg, _ := B.Reply(m, "处理中...")
 		unsubFeedItemsCurrentPage(msg, user, 1)
 	}
 }
@@ -627,7 +618,7 @@ func unsubAllCmdCtr(m *tb.Message) {
 	mention := GetMentionFromMessage(m)
 	user, err := getMentionedUser(m, mention, nil)
 	if err != nil {
-		_, _ = B.Send(m.Chat, err.Error())
+		_, _ = B.Reply(m, err.Error())
 		return
 	}
 
@@ -645,17 +636,12 @@ func unsubAllCmdCtr(m *tb.Message) {
 	})
 
 	msg := fmt.Sprintf("是否退订%s的所有订阅？", getUserHtml(user, m.Chat, "当前用户"))
-	_, _ = B.Send(
-		m.Chat,
-		msg,
-		&tb.SendOptions{
-			DisableWebPagePreview: true,
-			ParseMode:             tb.ModeHTML,
-		},
-		&tb.ReplyMarkup{
-			InlineKeyboard: confirmKeys,
-		},
-	)
+	_, _ = B.Reply(m, msg, &tb.SendOptions{
+		DisableWebPagePreview: true,
+		ParseMode:             tb.ModeHTML,
+	}, &tb.ReplyMarkup{
+		InlineKeyboard: confirmKeys,
+	})
 }
 
 func cancelBtnCtr(c *tb.Callback) {
@@ -664,7 +650,7 @@ func cancelBtnCtr(c *tb.Callback) {
 }
 
 func cancelCmdCtr(m *tb.Message) {
-	_, _ = B.Send(m.Chat, "当前操作已取消。")
+	_, _ = B.Reply(m, "当前操作已取消。")
 	UserState[m.Chat.ID] = fsm.None
 }
 
@@ -692,7 +678,7 @@ func unsubAllConfirmBtnCtr(c *tb.Callback) {
 }
 
 func pingCmdCtr(m *tb.Message) {
-	_, _ = B.Send(m.Chat, "pong")
+	_, _ = B.Reply(m, "pong")
 	zap.S().Debugw(
 		"pong",
 		"telegram msg", m,
@@ -718,24 +704,24 @@ func helpCmdCtr(m *tb.Message) {
 详细使用方法请看：https://github.com/indes/flowerss-bot
 `
 
-	_, _ = B.Send(m.Chat, message)
+	_, _ = B.Reply(m, message)
 }
 
 func versionCmdCtr(m *tb.Message) {
-	_, _ = B.Send(m.Chat, config.AppVersionInfo())
+	_, _ = B.Reply(m, config.AppVersionInfo())
 }
 
 func importCmdCtr(m *tb.Message) {
 	message := `请直接发送OPML文件，
 如果需要为channel导入OPML，请在发送文件的时候附上channel id，例如@telegram
 `
-	_, _ = B.Send(m.Chat, message)
+	_, _ = B.Reply(m, message)
 }
 
 func setFeedTagCmdCtr(m *tb.Message) {
 	args := strings.Split(m.Payload, " ")
 	if len(args) < 1 {
-		_, _ = B.Send(m.Chat, "/set_feed_tag [sub id] [tag1] [tag2] 设置订阅标签（最多设置三个Tag，以空格分割）")
+		_, _ = B.Reply(m, "/set_feed_tag [sub id] [tag1] [tag2] 设置订阅标签（最多设置三个Tag，以空格分割）")
 		return
 	}
 
@@ -749,32 +735,32 @@ func setFeedTagCmdCtr(m *tb.Message) {
 	}
 	subID, err := strconv.Atoi(args[0])
 	if err != nil {
-		_, _ = B.Send(m.Chat, "请输入正确的订阅ID！")
+		_, _ = B.Reply(m, "请输入正确的订阅ID！")
 		return
 	}
 	sub, err := model.GetSubscribeByID(subID)
 	if err != nil {
-		_, _ = B.Send(m.Chat, "请输入正确的订阅ID！")
+		_, _ = B.Reply(m, "请输入正确的订阅ID！")
 		return
 	}
 	_, err = getMentionedUser(m, strconv.FormatInt(sub.UserID, 10), nil)
 	if err != nil {
-		_, _ = B.Send(m.Chat, err.Error())
+		_, _ = B.Reply(m, err.Error())
 		return
 	}
 
 	err = sub.SetTag(args[1:])
 	if err != nil {
-		_, _ = B.Send(m.Chat, "订阅标签设置失败！")
+		_, _ = B.Reply(m, "订阅标签设置失败！")
 		return
 	}
-	_, _ = B.Send(m.Chat, "订阅标签设置成功！")
+	_, _ = B.Reply(m, "订阅标签设置成功！")
 }
 
 func setWebhookCmdCtr(m *tb.Message) {
 	args := strings.Split(m.Payload, " ")
 	if len(args) < 1 {
-		_, _ = B.Send(m.Chat, "/set_webhook [sub id] [webhook]")
+		_, _ = B.Reply(m, "/set_webhook [sub id] [webhook]")
 		return
 	}
 
@@ -784,26 +770,26 @@ func setWebhookCmdCtr(m *tb.Message) {
 	}
 	subID, err := strconv.Atoi(args[0])
 	if err != nil {
-		_, _ = B.Send(m.Chat, "请输入正确的订阅ID！")
+		_, _ = B.Reply(m, "请输入正确的订阅ID！")
 		return
 	}
 	sub, err := model.GetSubscribeByID(subID)
 	if err != nil {
-		_, _ = B.Send(m.Chat, "请输入正确的订阅ID！")
+		_, _ = B.Reply(m, "请输入正确的订阅ID！")
 		return
 	}
 	_, err = getMentionedUser(m, strconv.FormatInt(sub.UserID, 10), nil)
 	if err != nil {
-		_, _ = B.Send(m.Chat, err.Error())
+		_, _ = B.Reply(m, err.Error())
 		return
 	}
 
 	err = sub.SetWebhook(url)
 	if err != nil {
-		_, _ = B.Send(m.Chat, "订阅webhook设置失败！")
+		_, _ = B.Reply(m, "订阅webhook设置失败！")
 		return
 	}
-	_, _ = B.Send(m.Chat, "订阅webhook设置成功！")
+	_, _ = B.Reply(m, "订阅webhook设置成功！")
 }
 
 func setTokenCmdCtr(m *tb.Message) {
@@ -813,30 +799,30 @@ func setTokenCmdCtr(m *tb.Message) {
 		args = args[1:]
 	}
 	if len(args) != 1 {
-		_, _ = B.Send(m.Chat, "/set_token [token] 设置Put.io的token")
+		_, _ = B.Reply(m, "/set_token [token] 设置Put.io的token")
 		return
 	}
 	token := args[0]
 
 	user, err := getMentionedUser(m, mention, nil)
 	if err != nil {
-		_, _ = B.Send(m.Chat, err.Error())
+		_, _ = B.Reply(m, err.Error())
 		return
 	}
 
 	client := NewPutIoClient(token)
 	info, err := client.Account.Info(context.Background())
 	if err != nil {
-		_, _ = B.Send(m.Chat, "无效的token")
+		_, _ = B.Reply(m, "无效的token")
 		return
 	}
 	text := getUserHtml(user, m.Chat, "")
 	err = model.SaveTokenByUserId(user.ID, token)
 	if err != nil {
-		_, _ = B.Send(m.Chat, fmt.Sprintf("%s保存token失败", text))
+		_, _ = B.Reply(m, fmt.Sprintf("%s保存token失败", text))
 		return
 	}
-	_, _ = B.Send(m.Chat, fmt.Sprintf("%s成功保存了 %s 的 token", text, info.Username), &tb.SendOptions{
+	_, _ = B.Reply(m, fmt.Sprintf("%s成功保存了 %s 的 token", text, info.Username), &tb.SendOptions{
 		DisableWebPagePreview: true,
 		ParseMode:             tb.ModeHTML,
 	})
@@ -845,13 +831,13 @@ func setTokenCmdCtr(m *tb.Message) {
 func setIntervalCmdCtr(m *tb.Message) {
 	args := strings.Split(m.Payload, " ")
 	if len(args) < 1 {
-		_, _ = B.Send(m.Chat, "/set_interval [interval] [sub id] 设置订阅刷新频率（可设置多个sub id，以空格分割）")
+		_, _ = B.Reply(m, "/set_interval [interval] [sub id] 设置订阅刷新频率（可设置多个sub id，以空格分割）")
 		return
 	}
 
 	interval, err := strconv.Atoi(args[0])
 	if interval <= 0 || err != nil {
-		_, _ = B.Send(m.Chat, "请输入正确的抓取频率")
+		_, _ = B.Reply(m, "请输入正确的抓取频率")
 		return
 	}
 
@@ -879,19 +865,19 @@ func setIntervalCmdCtr(m *tb.Message) {
 			success++
 		}
 	}
-	_, _ = B.Send(m.Chat, fmt.Sprintf("抓取频率设置成功%d个，失败%d个，错误%d个！", success, failed, wrong))
+	_, _ = B.Reply(m, fmt.Sprintf("抓取频率设置成功%d个，失败%d个，错误%d个！", success, failed, wrong))
 }
 
 func activeAllCmdCtr(m *tb.Message) {
 	mention := GetMentionFromMessage(m)
 	user, err := getMentionedUser(m, mention, nil)
 	if err != nil {
-		_, _ = B.Send(m.Chat, err.Error())
+		_, _ = B.Reply(m, err.Error())
 		return
 	}
 	_ = model.ActiveSourcesByUserID(user.ID)
 	message := fmt.Sprintf("%s订阅已全部开启", getUserHtml(user, m.Chat, ""))
-	_, _ = B.Send(m.Chat, message, &tb.SendOptions{
+	_, _ = B.Reply(m, message, &tb.SendOptions{
 		DisableWebPagePreview: true,
 		ParseMode:             tb.ModeHTML,
 	})
@@ -901,12 +887,12 @@ func pauseAllCmdCtr(m *tb.Message) {
 	mention := GetMentionFromMessage(m)
 	user, err := getMentionedUser(m, mention, nil)
 	if err != nil {
-		_, _ = B.Send(m.Chat, err.Error())
+		_, _ = B.Reply(m, err.Error())
 		return
 	}
 	_ = model.PauseSourcesByUserID(user.ID)
 	message := fmt.Sprintf("%s订阅已全部暂停", getUserHtml(user, m.Chat, ""))
-	_, _ = B.Send(m.Chat, message, &tb.SendOptions{
+	_, _ = B.Reply(m, message, &tb.SendOptions{
 		DisableWebPagePreview: true,
 		ParseMode:             tb.ModeHTML,
 	})
@@ -919,31 +905,31 @@ func textCtr(m *tb.Message) {
 			str := strings.Split(m.Text, " ")
 
 			if len(str) < 2 && (strings.HasPrefix(str[0], "[") && strings.HasSuffix(str[0], "]")) {
-				_, _ = B.Send(m.Chat, "请选择正确的指令！")
+				_, _ = B.Reply(m, "请选择正确的指令！")
 			} else {
 
 				var sourceID uint
 				if _, err := fmt.Sscanf(str[0], "[%d]", &sourceID); err != nil {
-					_, _ = B.Send(m.Chat, "请选择正确的指令！")
+					_, _ = B.Reply(m, "请选择正确的指令！")
 					return
 				}
 
 				source, err := model.GetSourceById(sourceID)
 
 				if err != nil {
-					_, _ = B.Send(m.Chat, "请选择正确的指令！")
+					_, _ = B.Reply(m, "请选择正确的指令！")
 					return
 				}
 
 				err = model.UnsubByUserIDAndSource(m.Chat.ID, source)
 
 				if err != nil {
-					_, _ = B.Send(m.Chat, "请选择正确的指令！")
+					_, _ = B.Reply(m, "请选择正确的指令！")
 					return
 				}
 
-				_, _ = B.Send(
-					m.Chat,
+				_, _ = B.Reply(
+					m,
 					fmt.Sprintf("<a href=\"%s\">%s</a> 退订成功", source.Link, html.EscapeString(source.Title)),
 					&tb.SendOptions{
 						ParseMode: tb.ModeHTML,
@@ -955,16 +941,15 @@ func textCtr(m *tb.Message) {
 				return
 			}
 		}
-
 	case fsm.Sub:
 		{
 			url := strings.Split(m.Text, " ")
 			if !CheckURL(url[0]) {
-				_, _ = B.Send(m.Chat, "请回复正确的URL", &tb.ReplyMarkup{ForceReply: true})
+				_, _ = B.Reply(m, "请回复正确的URL", &tb.ReplyMarkup{ForceReply: true})
 				return
 			}
 
-			registerFeed(m.Chat, m.Chat, url[0])
+			registerFeed(m, m.Chat, url[0])
 			UserState[m.Chat.ID] = fsm.None
 		}
 	case fsm.SetSubTag:
@@ -976,17 +961,17 @@ func textCtr(m *tb.Message) {
 			str := strings.Split(m.Text, " ")
 			url := str[len(str)-1]
 			if len(str) != 2 && !CheckURL(url) {
-				_, _ = B.Send(m.Chat, "请选择正确的指令！")
+				_, _ = B.Reply(m, "请选择正确的指令！")
 			} else {
 				source, err := model.GetSourceByUrl(url)
 
 				if err != nil {
-					_, _ = B.Send(m.Chat, "请选择正确的指令！")
+					_, _ = B.Reply(m, "请选择正确的指令！")
 					return
 				}
 				sub, err := model.GetSubscribeByUserIDAndSourceID(m.Chat.ID, source.ID)
 				if err != nil {
-					_, _ = B.Send(m.Chat, "请选择正确的指令！")
+					_, _ = B.Reply(m, "请选择正确的指令！")
 					return
 				}
 
@@ -1000,12 +985,12 @@ func textCtr(m *tb.Message) {
 				})
 
 				// send null message to remove old keyboard
-				delKeyMessage, err := B.Send(m.Chat, "processing", &tb.ReplyMarkup{ReplyKeyboardRemove: true})
+				delKeyMessage, err := B.Reply(m, "processing", &tb.ReplyMarkup{ReplyKeyboardRemove: true})
 				err = B.Delete(delKeyMessage)
 
 				data := fmt.Sprintf("%d:%d", m.Chat.ID, source.ID)
 				textStr := fmt.Sprintf("%s%s", getUserHtml(m.Chat, m.Chat, ""), strings.TrimSpace(text.String()))
-				_, _ = B.Send(m.Chat, textStr, &tb.SendOptions{
+				_, _ = B.Reply(m, textStr, &tb.SendOptions{
 					DisableWebPagePreview: true,
 					ParseMode:             tb.ModeHTML,
 				}, &tb.ReplyMarkup{
@@ -1059,7 +1044,7 @@ func docCtr(m *tb.Message) {
 	mention := GetMentionFromMessage(m)
 	user, err := getMentionedUser(m, mention, nil)
 	if err != nil {
-		_, _ = B.Send(m.Chat, err.Error())
+		_, _ = B.Reply(m, err.Error())
 		return
 	}
 
@@ -1075,22 +1060,17 @@ func docCtr(m *tb.Message) {
 func importOpmlFile(m *tb.Message, userID int64, url string) {
 	opml, err := GetOPMLByURL(url)
 	if err != nil {
+		var text string
 		if err.Error() == "fetch opml file error" {
-			_, _ = B.Send(m.Chat,
-				"下载 OPML 文件失败，请检查 bot 服务器能否正常连接至 Telegram 服务器或稍后尝试导入。错误代码 02")
-
+			text = "下载 OPML 文件失败，请检查 bot 服务器能否正常连接至 Telegram 服务器或稍后尝试导入。错误代码 02"
 		} else {
-			_, _ = B.Send(
-				m.Chat,
-				fmt.Sprintf(
-					"如果需要导入订阅，请发送正确的 OPML 文件。错误代码 01，doc mimetype: %s",
-					m.Document.MIME),
-			)
+			text = fmt.Sprintf("如果需要导入订阅，请发送正确的 OPML 文件。错误代码 01，doc mimetype: %s", m.Document.MIME)
 		}
+		_, _ = B.Reply(m, text)
 		return
 	}
 
-	message, _ := B.Send(m.Chat, "处理中，请稍后...")
+	message, _ := B.Reply(m, "处理中，请稍候...")
 	outlines, _ := opml.GetFlattenOutlines()
 	var failImportList []Outline
 	var successImportList []Outline
@@ -1139,7 +1119,9 @@ func importOpmlFile(m *tb.Message, userID int64, url string) {
 func startTorrentFileTransfer(msg *tb.Message, userId int64, url string) {
 	user, _ := model.FindOrCreateUserByTelegramID(userId)
 	if user.Token == "" {
-		_, _ = B.Send(msg.Chat, "请先设置Put.io的token")
+		_, _ = B.Reply(msg, "请先通过 `/set_token` 设置Put.io的token", &tb.SendOptions{
+			ParseMode: tb.ModeMarkdown,
+		})
 		return
 	}
 	urlMap := map[string]string{url: ""}
