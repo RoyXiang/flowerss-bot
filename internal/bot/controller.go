@@ -703,10 +703,10 @@ func helpCmdCtr(m *tb.Message) {
 /import 导入 OPML 文件
 /export 导出 OPML 文件
 /unsub_all 取消所有订阅
-详细使用方法请看：https://github.com/indes/flowerss-bot
+详细使用方法请看：https://flowerss-bot.vercel.app/#/usage
 `
 
-	_, _ = B.Reply(m, message)
+	_, _ = B.Reply(m, message, &tb.SendOptions{DisableWebPagePreview: true})
 }
 
 func versionCmdCtr(m *tb.Message) {
