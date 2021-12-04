@@ -7,8 +7,8 @@ import (
 	"testing"
 )
 
-// TestGetMentionFromMessage test GetMentionFromMessage
-func TestGetMentionFromMessage(t *testing.T) {
+// TestGetArgumentsFromMessage test GetArgumentsFromMessage
+func TestGetArgumentsFromMessage(t *testing.T) {
 	tests := []struct {
 		name        string
 		m           *tb.Message
@@ -86,7 +86,7 @@ func TestGetMentionFromMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotMention := GetMentionFromMessage(tt.m)
+			gotMention, _, _ := GetArgumentsFromMessage(tt.m)
 			assert.Equal(t, gotMention, tt.wantMention)
 		})
 	}

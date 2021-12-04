@@ -10,7 +10,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -340,51 +339,41 @@ func HasAdminType(t tb.ChatType) bool {
 	return false
 }
 
-// GetMentionFromMessage get message mention
-func GetMentionFromMessage(m *tb.Message) (mention string) {
+// GetArgumentsFromMessage get message arguments
+func GetArgumentsFromMessage(msg *tb.Message) (mention string, args []string, urls []string) {
 	var text string
 	var entities []tb.MessageEntity
-	if m.Text != "" {
-		text = m.Text
-		entities = m.Entities
+	if msg.Text != "" {
+		text = msg.Text
+		entities = msg.Entities
 	} else {
-		text = m.Caption
-		entities = m.CaptionEntities
+		text = msg.Caption
+		entities = msg.CaptionEntities
 	}
+	args = strings.Fields(text)
 	for _, entity := range entities {
-		if entity.Type == tb.EntityMention {
-			return text[entity.Offset : entity.Offset+entity.Length]
-		}
-	}
-	return
-}
-
-var relaxUrlMatcher = regexp.MustCompile(`^(https?://.*?)($| )`)
-
-// GetURLAndMentionFromMessage get URL and mention from message
-func GetURLAndMentionFromMessage(m *tb.Message) (url string, mention string) {
-	for _, entity := range m.Entities {
+		entityText := text[entity.Offset : entity.Offset+entity.Length]
 		switch entity.Type {
+		case tb.EntityCommand:
+			args = findAndDelete(args, entityText)
 		case tb.EntityMention:
+			args = findAndDelete(args, entityText)
 			if mention == "" {
-				mention = m.Text[entity.Offset : entity.Offset+entity.Length]
+				mention = entityText
+			}
+		case tb.EntityTMention:
+			args = findAndDelete(args, entityText)
+			if mention == "" {
+				mention = strconv.Itoa(entity.User.ID)
 			}
 		case tb.EntityURL:
-			if url == "" {
-				url = m.Text[entity.Offset : entity.Offset+entity.Length]
-			}
+			args = findAndDelete(args, entityText)
+			urls = append(urls, entityText)
 		case tb.EntityTextLink:
-			if url == "" {
-				url = entity.URL
-			}
+			args = findAndDelete(args, entityText)
+			urls = append(urls, entity.URL)
 		}
 	}
-
-	var payloadMatching = relaxUrlMatcher.FindStringSubmatch(m.Payload)
-	if url == "" && len(payloadMatching) > 0 && payloadMatching[0] != "" {
-		url = payloadMatching[0]
-	}
-
 	return
 }
 

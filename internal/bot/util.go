@@ -8,6 +8,17 @@ import (
 	strip "github.com/grokify/html-strip-tags-go"
 )
 
+func findAndDelete(s []string, item string) []string {
+	idx := 0
+	for _, i := range s {
+		if i != item {
+			s[idx] = i
+			idx++
+		}
+	}
+	return s[:idx]
+}
+
 func trimDescription(desc string, limit int) string {
 	if limit == 0 {
 		return ""

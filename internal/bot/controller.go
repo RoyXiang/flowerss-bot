@@ -132,14 +132,14 @@ func startCmdCtr(m *tb.Message) {
 }
 
 func subCmdCtr(m *tb.Message) {
-	url, mention := GetURLAndMentionFromMessage(m)
+	mention, _, urls := GetArgumentsFromMessage(m)
 	user, err := getMentionedUser(m, mention, nil)
 	if err != nil {
 		_, _ = B.Reply(m, err.Error())
 		return
 	}
 
-	if url == "" {
+	if len(urls) == 0 {
 		if user.ID == m.Chat.ID {
 			_, err := B.Reply(m, "请回复RSS URL", &tb.ReplyMarkup{ForceReply: true})
 			if err == nil {
@@ -151,11 +151,11 @@ func subCmdCtr(m *tb.Message) {
 		return
 	}
 
-	registerFeed(m, user, url)
+	registerFeed(m, user, urls[0])
 }
 
 func exportCmdCtr(m *tb.Message) {
-	mention := GetMentionFromMessage(m)
+	mention, _, _ := GetArgumentsFromMessage(m)
 	user, err := getMentionedUser(m, mention, nil)
 	if err != nil {
 		_, _ = B.Reply(m, err.Error())
@@ -190,7 +190,7 @@ func exportCmdCtr(m *tb.Message) {
 }
 
 func listCmdCtr(m *tb.Message) {
-	mention := GetMentionFromMessage(m)
+	mention, _, _ := GetArgumentsFromMessage(m)
 	chat, err := getMentionedUser(m, mention, nil)
 	if err != nil {
 		_, _ = B.Reply(m, err.Error())
@@ -232,7 +232,7 @@ func listCmdCtr(m *tb.Message) {
 }
 
 func checkCmdCtr(m *tb.Message) {
-	mention := GetMentionFromMessage(m)
+	mention, _, _ := GetArgumentsFromMessage(m)
 	user, err := getMentionedUser(m, mention, nil)
 	if err != nil {
 		_, _ = B.Reply(m, err.Error())
@@ -255,7 +255,7 @@ func checkCmdCtr(m *tb.Message) {
 }
 
 func setCmdCtr(m *tb.Message) {
-	mention := GetMentionFromMessage(m)
+	mention, _, _ := GetArgumentsFromMessage(m)
 	user, err := getMentionedUser(m, mention, nil)
 	if err != nil {
 		_, _ = B.Reply(m, err.Error())
@@ -487,15 +487,15 @@ func setToggleUpdateBtnCtr(c *tb.Callback) {
 }
 
 func unsubCmdCtr(m *tb.Message) {
-	url, mention := GetURLAndMentionFromMessage(m)
+	mention, _, urls := GetArgumentsFromMessage(m)
 	user, err := getMentionedUser(m, mention, nil)
 	if err != nil {
 		_, _ = B.Reply(m, err.Error())
 		return
 	}
 
-	if url != "" {
-		source, err := model.GetSourceByUrl(url)
+	if len(urls) > 0 {
+		source, err := model.GetSourceByUrl(urls[0])
 		if err != nil {
 			_, _ = B.Reply(m, "未订阅该RSS源")
 			return
@@ -615,7 +615,7 @@ func unsubFeedItemBtnCtr(c *tb.Callback) {
 }
 
 func unsubAllCmdCtr(m *tb.Message) {
-	mention := GetMentionFromMessage(m)
+	mention, _, _ := GetArgumentsFromMessage(m)
 	user, err := getMentionedUser(m, mention, nil)
 	if err != nil {
 		_, _ = B.Reply(m, err.Error())
@@ -721,20 +721,12 @@ func importCmdCtr(m *tb.Message) {
 }
 
 func setFeedTagCmdCtr(m *tb.Message) {
-	args := strings.Split(m.Payload, " ")
+	_, args, _ := GetArgumentsFromMessage(m)
 	if len(args) < 1 {
 		_, _ = B.Reply(m, "/set_feed_tag [sub id] [tag1] [tag2] 设置订阅标签（最多设置三个Tag，以空格分割）")
 		return
 	}
 
-	mention := GetMentionFromMessage(m)
-	if mention != "" {
-		args = args[1:]
-	}
-	// 截短参数
-	if len(args) > 4 {
-		args = args[:4]
-	}
 	subID, err := strconv.Atoi(args[0])
 	if err != nil {
 		_, _ = B.Reply(m, "请输入正确的订阅ID！")
@@ -760,16 +752,12 @@ func setFeedTagCmdCtr(m *tb.Message) {
 }
 
 func setWebhookCmdCtr(m *tb.Message) {
-	args := strings.Split(m.Payload, " ")
+	_, args, urls := GetArgumentsFromMessage(m)
 	if len(args) < 1 {
 		_, _ = B.Reply(m, "/set_webhook [sub id] [webhook]")
 		return
 	}
 
-	url, mention := GetURLAndMentionFromMessage(m)
-	if mention != "" {
-		args = args[1:]
-	}
 	subID, err := strconv.Atoi(args[0])
 	if err != nil {
 		_, _ = B.Reply(m, "请输入正确的订阅ID！")
@@ -794,7 +782,13 @@ func setWebhookCmdCtr(m *tb.Message) {
 		return
 	}
 
-	err = sub.SetWebhook(url)
+	var webhook string
+	if len(urls) > 0 {
+		webhook = urls[0]
+	} else {
+		webhook = ""
+	}
+	err = sub.SetWebhook(webhook)
 	if err != nil {
 		_, _ = B.Reply(m, "订阅webhook设置失败！")
 		return
@@ -803,12 +797,8 @@ func setWebhookCmdCtr(m *tb.Message) {
 }
 
 func setTokenCmdCtr(m *tb.Message) {
-	args := strings.Split(m.Payload, " ")
-	mention := GetMentionFromMessage(m)
-	if mention != "" {
-		args = args[1:]
-	}
-	if len(args) != 1 {
+	mention, args, _ := GetArgumentsFromMessage(m)
+	if len(args) < 1 {
 		_, _ = B.Reply(m, "/set_token [token] 设置Put.io的token")
 		return
 	}
@@ -879,7 +869,7 @@ func setIntervalCmdCtr(m *tb.Message) {
 }
 
 func activeAllCmdCtr(m *tb.Message) {
-	mention := GetMentionFromMessage(m)
+	mention, _, _ := GetArgumentsFromMessage(m)
 	user, err := getMentionedUser(m, mention, nil)
 	if err != nil {
 		_, _ = B.Reply(m, err.Error())
@@ -894,7 +884,7 @@ func activeAllCmdCtr(m *tb.Message) {
 }
 
 func pauseAllCmdCtr(m *tb.Message) {
-	mention := GetMentionFromMessage(m)
+	mention, _, _ := GetArgumentsFromMessage(m)
 	user, err := getMentionedUser(m, mention, nil)
 	if err != nil {
 		_, _ = B.Reply(m, err.Error())
@@ -1007,22 +997,14 @@ func textCtr(m *tb.Message) {
 			}
 		}
 	default:
-		urlMap := make(map[string]string, len(m.Entities))
-		for _, entity := range m.Entities {
-			if entity.Type != tb.EntityURL && entity.Type != tb.EntityTextLink {
-				continue
-			}
-			url := entity.URL
-			if url == "" {
-				url = m.Text[entity.Offset : entity.Offset+entity.Length]
-			}
+		mention, args, urls := GetArgumentsFromMessage(m)
+		urlMap := make(map[string]string, len(urls))
+		for _, url := range urls {
 			if IsTorrentUrl(url) {
 				urlMap[url] = ""
 			}
 		}
-
-		parts := strings.Split(m.Text, " ")
-		for _, part := range parts {
+		for _, part := range args {
 			if strings.HasPrefix(part, util.PrefixMagnet) && len(part) >= util.LengthMagnet {
 				urlMap[part] = ""
 			}
@@ -1032,7 +1014,6 @@ func textCtr(m *tb.Message) {
 		if total <= 0 {
 			return
 		}
-		mention := GetMentionFromMessage(m)
 		tgUser, err := getMentionedUser(m, mention, nil)
 		if err != nil {
 			return
@@ -1048,7 +1029,7 @@ func textCtr(m *tb.Message) {
 
 // docCtr Document handler
 func docCtr(m *tb.Message) {
-	mention := GetMentionFromMessage(m)
+	mention, _, _ := GetArgumentsFromMessage(m)
 	user, err := getMentionedUser(m, mention, nil)
 	if err != nil {
 		_, _ = B.Reply(m, err.Error())
