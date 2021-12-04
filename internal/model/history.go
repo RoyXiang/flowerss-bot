@@ -5,7 +5,6 @@ type HistoryType int
 const (
 	HistoryTelegramMessage HistoryType = iota
 	HistoryTorrentTransfer
-	HistoryWebhook
 )
 
 type History struct {

@@ -173,8 +173,8 @@ func BroadcastSourceError(source *model.Source) {
 	}
 }
 
-// AddPutIoTransfers add transfer tasks on Put.io
-func AddPutIoTransfers(subs []*model.Subscribe, contents []*model.Content) {
+// HandleTorrentFeeds add transfer tasks on Put.io
+func HandleTorrentFeeds(subs []*model.Subscribe, contents []*model.Content) {
 	urlMap := map[string]string{}
 	for _, content := range contents {
 		if content.TorrentUrl == "" {
@@ -202,7 +202,11 @@ func AddPutIoTransfers(subs []*model.Subscribe, contents []*model.Content) {
 		if tokenMap[sub.UserID] == "" {
 			continue
 		}
-		AddPutIoTransfer(tokenMap[sub.UserID], urlMap)
+		if sub.Webhook == "" {
+			AddPutIoTransfers(tokenMap[sub.UserID], urlMap)
+		} else {
+			SendWebhook(tokenMap[sub.UserID], sub, contents, urlMap)
+		}
 	}
 }
 
@@ -214,15 +218,8 @@ type webhookBody struct {
 }
 
 // SendWebhook send new contents to webhook
-func SendWebhook(subs []*model.Subscribe, contents []*model.Content) {
-	webhooks := make(map[string]struct{})
-	exists := struct{}{}
-	for _, sub := range subs {
-		if sub.Webhook != "" {
-			webhooks[sub.Webhook] = exists
-		}
-	}
-	if len(webhooks) == 0 {
+func SendWebhook(token string, sub *model.Subscribe, contents []*model.Content, urlMap map[string]string) {
+	if sub.Webhook == "" {
 		return
 	}
 
@@ -231,38 +228,31 @@ func SendWebhook(subs []*model.Subscribe, contents []*model.Content) {
 			continue
 		}
 
+		history := &model.History{
+			Type:      model.HistoryTorrentTransfer,
+			TriggerId: urlMap[content.TorrentUrl],
+			TargetId:  token,
+		}
+		if history.IsSaved() {
+			continue
+		}
+
 		body := webhookBody{
 			Title: content.Title,
 			Guid:  content.RawID,
 			Link:  content.TorrentUrl,
 		}
-
-		for _, sub := range subs {
-			if sub.Webhook == "" {
-				continue
+		if sub.Tag != "" {
+			tags := strings.Split(sub.Tag, " ")
+			body.Tags = make([]string, len(tags))
+			for i, tag := range tags {
+				body.Tags[i] = tag[1:]
 			}
-
-			history := &model.History{
-				Type:      model.HistoryWebhook,
-				TriggerId: content.GetTriggerId(),
-				TargetId:  sub.Webhook,
-			}
-			if history.IsSaved() {
-				continue
-			}
-
-			if sub.Tag != "" {
-				tags := strings.Split(sub.Tag, " ")
-				body.Tags = make([]string, len(tags))
-				for i, tag := range tags {
-					body.Tags[i] = tag[1:]
-				}
-			} else {
-				body.Tags = make([]string, 0)
-			}
-			if sendBodyToWebhook(body, sub.Webhook) {
-				history.Save()
-			}
+		} else {
+			body.Tags = make([]string, 0)
+		}
+		if sendBodyToWebhook(body, sub.Webhook) {
+			history.Save()
 		}
 	}
 }
@@ -427,7 +417,7 @@ func IsTorrentUrl(torrentUrl string) bool {
 	return strings.HasPrefix(contentType, util.ContentTypeTorrent)
 }
 
-func AddPutIoTransfer(token string, urlMap map[string]string) (count int) {
+func AddPutIoTransfers(token string, urlMap map[string]string) (count int) {
 	ctx := context.Background()
 
 	var parent int64

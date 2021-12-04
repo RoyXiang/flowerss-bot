@@ -16,7 +16,6 @@ func init() {
 	task := NewRssTask()
 	task.Register(&telegramBotRssUpdateObserver{})
 	task.Register(&putIoRssUpdateObserver{})
-	task.Register(&webhookRssUpdateObserver{})
 	registerTask(task)
 }
 
@@ -156,7 +155,7 @@ type putIoRssUpdateObserver struct {
 
 func (o *putIoRssUpdateObserver) update(source *model.Source, newContents []*model.Content, subscribes []*model.Subscribe) {
 	zap.S().Debugf("%v receiving [%d]%v update", o.id(), source.ID, source.Title)
-	bot.AddPutIoTransfers(subscribes, newContents)
+	bot.HandleTorrentFeeds(subscribes, newContents)
 }
 
 func (o *putIoRssUpdateObserver) errorUpdate(source *model.Source) {
@@ -165,20 +164,4 @@ func (o *putIoRssUpdateObserver) errorUpdate(source *model.Source) {
 
 func (o *putIoRssUpdateObserver) id() string {
 	return "putIoRssUpdateObserver"
-}
-
-type webhookRssUpdateObserver struct {
-}
-
-func (o *webhookRssUpdateObserver) update(source *model.Source, newContents []*model.Content, subscribes []*model.Subscribe) {
-	zap.S().Debugf("%v receiving [%d]%v update", o.id(), source.ID, source.Title)
-	bot.SendWebhook(subscribes, newContents)
-}
-
-func (o *webhookRssUpdateObserver) errorUpdate(source *model.Source) {
-	zap.S().Debugf("%v receiving [%d]%v error update", o.id(), source.ID, source.Title)
-}
-
-func (o *webhookRssUpdateObserver) id() string {
-	return "webhookRssUpdateObserver"
 }

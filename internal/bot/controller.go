@@ -786,6 +786,14 @@ func setWebhookCmdCtr(m *tb.Message) {
 		return
 	}
 
+	user, err := model.FindOrCreateUserByTelegramID(sub.UserID)
+	if err != nil || user.Token == "" {
+		_, _ = B.Reply(m, "请先通过 `/set_token` 设置Put.io的token", &tb.SendOptions{
+			ParseMode: tb.ModeMarkdown,
+		})
+		return
+	}
+
 	err = sub.SetWebhook(url)
 	if err != nil {
 		_, _ = B.Reply(m, "订阅webhook设置失败！")
@@ -1033,7 +1041,7 @@ func textCtr(m *tb.Message) {
 		if user.Token == "" {
 			return
 		}
-		count := AddPutIoTransfer(user.Token, urlMap)
+		count := AddPutIoTransfers(user.Token, urlMap)
 		_, _ = B.Reply(m, fmt.Sprintf("发现%d条链接，成功添加%d个下载任务", total, count))
 	}
 }
@@ -1124,7 +1132,7 @@ func startTorrentFileTransfer(msg *tb.Message, userId int64, url string) {
 		return
 	}
 	urlMap := map[string]string{url: ""}
-	count := AddPutIoTransfer(user.Token, urlMap)
+	count := AddPutIoTransfers(user.Token, urlMap)
 	if count <= 0 {
 		_, _ = B.Reply(msg, "添加下载任务失败")
 		return
