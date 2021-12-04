@@ -210,10 +210,9 @@ func HandleTorrentFeeds(subs []*model.Subscribe, contents []*model.Content) {
 }
 
 type webhookBody struct {
-	Title string   `json:"title"`
-	Guid  string   `json:"guid"`
-	Link  string   `json:"link"`
-	Tags  []string `json:"tags"`
+	Title string `json:"title"`
+	Guid  string `json:"guid"`
+	Link  string `json:"link"`
 }
 
 // SendWebhook send new contents to webhook
@@ -240,15 +239,6 @@ func SendWebhook(token string, sub *model.Subscribe, contents []*model.Content, 
 			Title: content.Title,
 			Guid:  content.RawID,
 			Link:  content.TorrentUrl,
-		}
-		if sub.Tag != "" {
-			tags := strings.Split(sub.Tag, " ")
-			body.Tags = make([]string, len(tags))
-			for i, tag := range tags {
-				body.Tags[i] = tag[1:]
-			}
-		} else {
-			body.Tags = make([]string, 0)
 		}
 		if sendBodyToWebhook(body, sub.Webhook) {
 			history.Save()
