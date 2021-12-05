@@ -174,22 +174,45 @@ func BroadcastSourceError(source *model.Source) {
 
 // HandleTorrentFeeds add transfer tasks on Put.io
 func HandleTorrentFeeds(subs []*model.Subscribe, contents []*model.Content) {
-	urlMap := map[string]string{}
-	for _, content := range contents {
-		if content.TorrentUrl == "" {
-			continue
-		}
-		urlMap[content.TorrentUrl] = content.GetTriggerId()
-	}
-	if len(urlMap) == 0 {
-		return
-	}
-
 	tokenMap := map[int64]string{}
 	for _, sub := range subs {
 		if sub.EnableDownload != 1 {
 			continue
 		}
+
+		shouldFilter := sub.EnableFilter == 1
+		var keywords []string
+		if shouldFilter {
+			kRecords := model.GetUserKeywords(sub.UserID)
+			for _, k := range kRecords {
+				keywords = append(keywords, strings.ToLower(k.Keyword))
+			}
+		}
+
+		urlMap := map[string]string{}
+		for _, content := range contents {
+			if content.TorrentUrl == "" {
+				continue
+			}
+			if shouldFilter {
+				title := strings.ToLower(content.Title)
+				containKeyword := false
+				for _, k := range keywords {
+					if strings.Contains(title, k) {
+						containKeyword = true
+						break
+					}
+				}
+				if !containKeyword {
+					continue
+				}
+			}
+			urlMap[content.TorrentUrl] = content.GetTriggerId()
+		}
+		if len(urlMap) == 0 {
+			continue
+		}
+
 		if _, ok := tokenMap[sub.UserID]; !ok {
 			user, err := model.FindOrCreateUserByTelegramID(sub.UserID)
 			if err == nil {

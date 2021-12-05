@@ -11,6 +11,12 @@ type Keyword struct {
 	EditTime
 }
 
+func GetUserKeywords(userId int64) (keywords []Keyword) {
+	condition := &Keyword{UserID: userId}
+	db.Where(condition).Find(&keywords)
+	return
+}
+
 func GetUserKeywordsByPage(userId int64, page, limit int) (keywords []Keyword, hasPrev, hasNext bool, err error) {
 	offset := getPageOffset(page, limit)
 	if offset < 0 {
