@@ -847,9 +847,9 @@ func addKeywordCmdCtr(m *tb.Message) {
 	text := getUserHtml(user, m.Chat, "")
 	err = model.SaveKeyword(user.ID, keyword)
 	if err == nil {
-		text += fmt.Sprintf("添加关键词 <pre>%s</pre> 成功", keyword)
+		text += fmt.Sprintf("添加关键词 <code>%s</code> 成功", keyword)
 	} else {
-		text += fmt.Sprintf("添加关键词 <pre>%s</pre> 失败", keyword)
+		text += fmt.Sprintf("添加关键词 <code>%s</code> 失败", keyword)
 	}
 	_, _ = B.Reply(m, text, &tb.SendOptions{
 		DisableWebPagePreview: true,
