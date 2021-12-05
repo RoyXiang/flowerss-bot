@@ -89,7 +89,6 @@ func setCommands() {
 		{Text: "set", Description: "对RSS订阅进行设置"},
 		{Text: "set_feed_tag", Description: "[sub id] [tag1] [tag2] 设置RSS订阅的标签 (最多设置三个tag，以空格分隔)"},
 		{Text: "set_interval", Description: "[interval] [sub id] 设置RSS订阅的抓取间隔 (可同时对多个sub id进行设置，以空格分隔)"},
-		{Text: "set_webhook", Description: "[sub id] [webhook] 设置RSS订阅的webhook"},
 		{Text: "set_token", Description: "[token] 设置Put.io的token"},
 
 		{Text: "add_keyword", Description: "[keyword] 添加下载过滤关键词"},
@@ -168,8 +167,6 @@ func setHandle() {
 	B.Handle("/import", importCmdCtr)
 
 	B.Handle("/set_feed_tag", setFeedTagCmdCtr)
-
-	B.Handle("/set_webhook", setWebhookCmdCtr)
 
 	B.Handle("/set_token", setTokenCmdCtr)
 

@@ -1,9 +1,7 @@
 package bot
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
@@ -224,73 +222,8 @@ func HandleTorrentFeeds(subs []*model.Subscribe, contents []*model.Content) {
 		if tokenMap[sub.UserID] == "" {
 			continue
 		}
-		if sub.Webhook == "" {
-			AddPutIoTransfers(tokenMap[sub.UserID], urlMap)
-		} else {
-			SendWebhook(tokenMap[sub.UserID], sub, contents, urlMap)
-		}
+		AddPutIoTransfers(tokenMap[sub.UserID], urlMap)
 	}
-}
-
-type webhookBody struct {
-	Title string `json:"title"`
-	Guid  string `json:"guid"`
-	Link  string `json:"link"`
-}
-
-// SendWebhook send new contents to webhook
-func SendWebhook(token string, sub *model.Subscribe, contents []*model.Content, urlMap map[string]string) {
-	if sub.Webhook == "" {
-		return
-	}
-
-	for _, content := range contents {
-		if content.TorrentUrl == "" {
-			continue
-		}
-
-		history := &model.History{
-			Type:      model.HistoryTorrentTransfer,
-			TriggerId: urlMap[content.TorrentUrl],
-			TargetId:  token,
-		}
-		if history.IsSaved() {
-			continue
-		}
-
-		body := webhookBody{
-			Title: content.Title,
-			Guid:  content.RawID,
-			Link:  content.TorrentUrl,
-		}
-		if sendBodyToWebhook(body, sub.Webhook) {
-			history.Save()
-		}
-	}
-}
-
-func sendBodyToWebhook(body webhookBody, webhook string) bool {
-	b := new(bytes.Buffer)
-	err := json.NewEncoder(b).Encode(body)
-	if err != nil {
-		return false
-	}
-
-	req, err := http.NewRequest(http.MethodPost, webhook, b)
-	if err != nil {
-		return false
-	}
-	req.Header.Set("User-Agent", config.UserAgent)
-	req.Header.Set("Content-Type", "application/json; charset=utf-8")
-
-	resp, err := util.HttpClient.Do(req)
-	if err != nil {
-		return false
-	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
-	return resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices
 }
 
 // CheckAdmin check user is admin of group/channel

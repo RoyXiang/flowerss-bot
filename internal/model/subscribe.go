@@ -18,7 +18,7 @@ type Subscribe struct {
 	EnableDownload     int
 	EnableFilter       int
 	Tag                string
-	Webhook            string
+	Webhook            string // Deprecated: 不再使用
 	Interval           int
 	WaitTime           int
 	EditTime
@@ -217,12 +217,6 @@ func (s *Subscribe) SetTag(tags []string) error {
 		s.Tag = ""
 	}
 
-	return nil
-}
-
-func (s *Subscribe) SetWebhook(webhook string) error {
-	defer s.Save()
-	s.Webhook = webhook
 	return nil
 }
 

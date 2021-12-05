@@ -40,7 +40,6 @@ var (
 [下载任务] {{if eq .sub.EnableDownload 0}}关闭{{else if eq .sub.EnableDownload 1}}开启{{end}}{{if eq .sub.EnableFilter 0}}（未过滤）{{else if eq .sub.EnableFilter 1}}（已过滤）{{end}}
 [Telegraph] {{if eq .sub.EnableTelegraph 0}}关闭{{else if eq .sub.EnableTelegraph 1}}开启{{end}}
 [Tag] {{if .sub.Tag}}{{ .sub.Tag }}{{else}}无{{end}}
-{{if .sub.Webhook}}[Webhook] {{ .sub.Webhook }}{{end}}
 `
 )
 
@@ -759,51 +758,6 @@ func setFeedTagCmdCtr(m *tb.Message) {
 		return
 	}
 	_, _ = B.Reply(m, "订阅标签设置成功！")
-}
-
-func setWebhookCmdCtr(m *tb.Message) {
-	_, args, urls := GetArgumentsFromMessage(m)
-	if len(args) < 1 {
-		_, _ = B.Reply(m, "/set_webhook [sub id] [webhook]")
-		return
-	}
-
-	subID, err := strconv.Atoi(args[0])
-	if err != nil {
-		_, _ = B.Reply(m, "请输入正确的订阅ID！")
-		return
-	}
-	sub, err := model.GetSubscribeByID(subID)
-	if err != nil {
-		_, _ = B.Reply(m, "请输入正确的订阅ID！")
-		return
-	}
-	_, err = getMentionedUser(m, strconv.FormatInt(sub.UserID, 10), nil)
-	if err != nil {
-		_, _ = B.Reply(m, err.Error())
-		return
-	}
-
-	user, err := model.FindOrCreateUserByTelegramID(sub.UserID)
-	if err != nil || user.Token == "" {
-		_, _ = B.Reply(m, "请先通过 `/set_token` 设置Put.io的token", &tb.SendOptions{
-			ParseMode: tb.ModeMarkdown,
-		})
-		return
-	}
-
-	var webhook string
-	if len(urls) > 0 {
-		webhook = urls[0]
-	} else {
-		webhook = ""
-	}
-	err = sub.SetWebhook(webhook)
-	if err != nil {
-		_, _ = B.Reply(m, "订阅webhook设置失败！")
-		return
-	}
-	_, _ = B.Reply(m, "订阅webhook设置成功！")
 }
 
 func setTokenCmdCtr(m *tb.Message) {
