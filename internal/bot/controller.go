@@ -24,6 +24,7 @@ const (
 	actionToggleNotice    = "toggleNotice"
 	actionToggleTelegraph = "toggleTelegraph"
 	actionToggleDownload  = "toggleDownload"
+	actionToggleFilter    = "toggleFilter"
 	actionToggleUpdate    = "toggleUpdate"
 	limitPerPage          = 10
 )
@@ -36,7 +37,7 @@ var (
 [抓取更新] {{if ge .source.ErrorCount .Count }}暂停{{else if lt .source.ErrorCount .Count }}抓取中{{end}}
 [抓取频率] {{ .sub.Interval }}分钟
 [通知] {{if eq .sub.EnableNotification 0}}关闭{{else if eq .sub.EnableNotification 1}}开启{{end}}
-[下载任务] {{if eq .sub.EnableDownload 0}}关闭{{else if eq .sub.EnableDownload 1}}开启{{end}}
+[下载任务] {{if eq .sub.EnableDownload 0}}关闭{{else if eq .sub.EnableDownload 1}}开启{{end}}{{if eq .sub.EnableFilter 0}}（未过滤）{{else if eq .sub.EnableFilter 1}}（已过滤）{{end}}
 [Telegraph] {{if eq .sub.EnableTelegraph 0}}关闭{{else if eq .sub.EnableTelegraph 1}}开启{{end}}
 [Tag] {{if .sub.Tag}}{{ .sub.Tag }}{{else}}无{{end}}
 {{if .sub.Webhook}}[Webhook] {{ .sub.Webhook }}{{end}}
@@ -94,6 +95,8 @@ func toggleCtrlButtons(c *tb.Callback, action string) {
 				return
 			}
 		}
+	case actionToggleFilter:
+		err = sub.ToggleFilter()
 	case actionToggleUpdate:
 		err = source.ToggleEnabled()
 	}
@@ -401,12 +404,6 @@ func setSubTagBtnCtr(c *tb.Callback) {
 }
 
 func genFeedSetBtn(data string, sub *model.Subscribe, source *model.Source) [][]tb.InlineButton {
-	setSubTagKey := tb.InlineButton{
-		Unique: "set_set_sub_tag_btn",
-		Text:   "标签设置",
-		Data:   data,
-	}
-
 	toggleDownloadKey := tb.InlineButton{
 		Unique: "set_toggle_download_btn",
 		Text:   "开启下载",
@@ -443,6 +440,15 @@ func genFeedSetBtn(data string, sub *model.Subscribe, source *model.Source) [][]
 		toggleEnabledKey.Text = "重启更新"
 	}
 
+	toggleFilterKey := tb.InlineButton{
+		Unique: "set_toggle_filter_btn",
+		Text:   "开启下载过滤",
+		Data:   data,
+	}
+	if sub.EnableFilter == 1 {
+		toggleFilterKey.Text = "关闭下载过滤"
+	}
+
 	parts := strings.Split(data, ":")
 	if len(parts) < 3 {
 		parts = append(parts, "1")
@@ -459,11 +465,11 @@ func genFeedSetBtn(data string, sub *model.Subscribe, source *model.Source) [][]
 			toggleNoticeKey,
 		},
 		{
-			toggleTelegraphKey,
-			setSubTagKey,
+			toggleDownloadKey,
+			toggleFilterKey,
 		},
 		{
-			toggleDownloadKey,
+			toggleTelegraphKey,
 			backKey,
 		},
 	}
@@ -480,6 +486,10 @@ func setToggleTelegraphBtnCtr(c *tb.Callback) {
 
 func setToggleDownloadBtnCtr(c *tb.Callback) {
 	toggleCtrlButtons(c, actionToggleDownload)
+}
+
+func setToggleFilterBtnCtr(c *tb.Callback) {
+	toggleCtrlButtons(c, actionToggleFilter)
 }
 
 func setToggleUpdateBtnCtr(c *tb.Callback) {

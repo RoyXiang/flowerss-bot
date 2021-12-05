@@ -122,8 +122,11 @@ func setHandle() {
 
 	B.Handle(&tb.InlineButton{Unique: "set_toggle_download_btn"}, setToggleDownloadBtnCtr)
 
+	B.Handle(&tb.InlineButton{Unique: "set_toggle_filter_btn"}, setToggleFilterBtnCtr)
+
 	B.Handle(&tb.InlineButton{Unique: "set_toggle_update_btn"}, setToggleUpdateBtnCtr)
 
+	// Deprecated: 此回调已不再使用，保留代码回应历史消息
 	B.Handle(&tb.InlineButton{Unique: "set_set_sub_tag_btn"}, setSubTagBtnCtr)
 
 	B.Handle(&tb.InlineButton{Unique: "unsub_all_confirm_btn"}, unsubAllConfirmBtnCtr)

@@ -16,6 +16,7 @@ type Subscribe struct {
 	EnableNotification int
 	EnableTelegraph    int
 	EnableDownload     int
+	EnableFilter       int
 	Tag                string
 	Webhook            string
 	Interval           int
@@ -180,6 +181,15 @@ func (s *Subscribe) ToggleDownload() error {
 		s.EnableDownload = 1
 	} else {
 		s.EnableDownload = 0
+	}
+	return nil
+}
+
+func (s *Subscribe) ToggleFilter() error {
+	if s.EnableFilter != 1 {
+		s.EnableFilter = 1
+	} else {
+		s.EnableFilter = 0
 	}
 	return nil
 }
