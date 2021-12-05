@@ -92,6 +92,9 @@ func setCommands() {
 		{Text: "set_webhook", Description: "[sub id] [webhook] 设置RSS订阅的webhook"},
 		{Text: "set_token", Description: "[token] 设置Put.io的token"},
 
+		{Text: "add_keyword", Description: "[keyword] 添加下载过滤关键词"},
+		{Text: "remove_keyword", Description: "移除下载过滤关键词"},
+
 		{Text: "export", Description: "导出订阅为OPML文件"},
 		{Text: "import", Description: "从OPML文件导入订阅"},
 
@@ -138,6 +141,10 @@ func setHandle() {
 
 	B.Handle(&tb.InlineButton{Unique: "unsub_feed_item_page"}, unsubFeedItemPageCtr)
 
+	B.Handle(&tb.InlineButton{Unique: "remove_keyword_btn"}, removeKeywordBtnCtr)
+
+	B.Handle(&tb.InlineButton{Unique: "remove_keyword_page"}, removeKeywordPageCtr)
+
 	B.Handle(&tb.InlineButton{Unique: "cancel_btn"}, cancelBtnCtr)
 
 	B.Handle("/start", startCmdCtr)
@@ -167,6 +174,10 @@ func setHandle() {
 	B.Handle("/set_token", setTokenCmdCtr)
 
 	B.Handle("/set_interval", setIntervalCmdCtr)
+
+	B.Handle("/add_keyword", addKeywordCmdCtr)
+
+	B.Handle("/remove_keyword", removeKeywordCmdCtr)
 
 	B.Handle("/check", checkCmdCtr)
 

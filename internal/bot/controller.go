@@ -878,6 +878,122 @@ func setIntervalCmdCtr(m *tb.Message) {
 	_, _ = B.Reply(m, fmt.Sprintf("抓取频率设置成功%d个，失败%d个，错误%d个！", success, failed, wrong))
 }
 
+func addKeywordCmdCtr(m *tb.Message) {
+	mention, _, _ := GetArgumentsFromMessage(m)
+	user, err := getMentionedUser(m, mention, nil)
+	if err != nil {
+		_, _ = B.Reply(m, err.Error())
+		return
+	}
+
+	parts := strings.Split(m.Payload, " ")
+	parts = findAndDelete(parts, mention)
+	keyword := strings.Join(parts, " ")
+
+	text := getUserHtml(user, m.Chat, "")
+	err = model.SaveKeyword(user.ID, keyword)
+	if err == nil {
+		text += fmt.Sprintf("添加关键词 `%s` 成功", keyword)
+	} else {
+		text += fmt.Sprintf("添加关键词 `%s` 失败", keyword)
+	}
+	_, _ = B.Reply(m, text, &tb.SendOptions{
+		DisableWebPagePreview: true,
+		ParseMode:             tb.ModeMarkdown,
+	})
+}
+
+func removeKeywordCmdCtr(m *tb.Message) {
+	mention, _, _ := GetArgumentsFromMessage(m)
+	user, err := getMentionedUser(m, mention, nil)
+	if err != nil {
+		_, _ = B.Reply(m, err.Error())
+		return
+	}
+
+	msg, _ := B.Reply(m, "处理中...")
+	removeKeywordsCurrentPage(msg, user, 1)
+}
+
+func removeKeywordPageCtr(c *tb.Callback) {
+	data := strings.Split(c.Data, ":")
+	if len(data) != 2 {
+		_, _ = B.Edit(c.Message, "内部错误：回调数据不正确")
+		return
+	}
+
+	user, err := getMentionedUser(c.Message, data[0], c.Sender)
+	if err != nil {
+		_ = B.Respond(c, &tb.CallbackResponse{
+			Text: err.Error(),
+		})
+		return
+	}
+
+	page, _ := strconv.Atoi(data[1])
+	removeKeywordsCurrentPage(c.Message, user, page)
+}
+
+func removeKeywordsCurrentPage(m *tb.Message, user *tb.Chat, page int) {
+	keywords, hasPrev, hasNext, _ := model.GetUserKeywordsByPage(user.ID, page, limitPerPage)
+
+	var inlineKeyboard [][]tb.InlineButton
+	for _, k := range keywords {
+		inlineKeyboard = append(inlineKeyboard, []tb.InlineButton{{
+			Unique: "remove_keyword_btn",
+			Text:   k.Keyword,
+			Data:   fmt.Sprintf("%d:%d:%d", k.UserID, k.ID, page),
+		}})
+	}
+
+	var lastRow []tb.InlineButton
+	if hasPrev {
+		lastRow = append(lastRow, tb.InlineButton{
+			Unique: "remove_keyword_page",
+			Text:   "上一页",
+			Data:   fmt.Sprintf("%d:%d", user.ID, page-1),
+		})
+	}
+	lastRow = append(lastRow, tb.InlineButton{
+		Unique: "cancel_btn",
+		Text:   "取消",
+	})
+	if hasNext {
+		lastRow = append(lastRow, tb.InlineButton{
+			Unique: "remove_keyword_page",
+			Text:   "下一页",
+			Data:   fmt.Sprintf("%d:%d", user.ID, page+1),
+		})
+	}
+	inlineKeyboard = append(inlineKeyboard, lastRow)
+
+	_, _ = B.Edit(m, "请选择你要删除的关键词", &tb.ReplyMarkup{
+		InlineKeyboard: inlineKeyboard,
+	})
+}
+
+func removeKeywordBtnCtr(c *tb.Callback) {
+	data := strings.Split(c.Data, ":")
+	if len(data) != 3 {
+		_, _ = B.Edit(c.Message, "内部错误：回调数据不正确")
+		return
+	}
+
+	user, err := getMentionedUser(c.Message, data[0], c.Sender)
+	if err != nil {
+		_ = B.Respond(c, &tb.CallbackResponse{
+			Text: err.Error(),
+		})
+		return
+	}
+
+	keywordId, _ := strconv.ParseUint(data[1], 10, 64)
+	_ = model.RemoveKeyword(uint(keywordId), user.ID)
+
+	page, _ := strconv.Atoi(data[2])
+	removeKeywordsCurrentPage(c.Message, user, page)
+}
+
 func activeAllCmdCtr(m *tb.Message) {
 	mention, _, _ := GetArgumentsFromMessage(m)
 	user, err := getMentionedUser(m, mention, nil)

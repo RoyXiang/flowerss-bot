@@ -37,6 +37,7 @@ func updateTable() {
 	createOrUpdateTable(&Option{})
 	createOrUpdateTable(&Content{})
 	createOrUpdateTable(&History{})
+	createOrUpdateTable(&Keyword{})
 }
 
 // connectDB connect to db
