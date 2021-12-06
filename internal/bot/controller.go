@@ -833,10 +833,13 @@ func setIntervalCmdCtr(m *tb.Message) {
 }
 
 func addKeywordCmdCtr(m *tb.Message) {
-	mention, _, _ := GetArgumentsFromMessage(m)
+	mention, args, _ := GetArgumentsFromMessage(m)
 	user, err := getMentionedUser(m, mention, nil)
 	if err != nil {
 		_, _ = B.Reply(m, err.Error())
+		return
+	} else if len(args) == 0 {
+		_, _ = B.Reply(m, "关键词不能为空")
 		return
 	}
 
