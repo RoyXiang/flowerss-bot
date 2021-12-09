@@ -24,6 +24,7 @@ func handleSignal() {
 
 	<-c
 
+	bot.Stop()
 	task.StopTasks()
 	model.Disconnect()
 	os.Exit(0)
