@@ -229,17 +229,20 @@ func HandleTorrentFeeds(subs []*model.Subscribe, contents []*model.Content) {
 // CheckAdmin check user is admin of group/channel
 func CheckAdmin(upd *tb.Update) bool {
 	var msg *tb.Message
+	var sender *tb.User
 	if upd.Message != nil {
 		msg = upd.Message
+		sender = msg.Sender
 	} else if upd.Callback != nil {
 		msg = upd.Callback.Message
+		sender = upd.Callback.Sender
 	} else {
 		return false
 	}
 	if !HasAdminType(msg.Chat.Type) {
 		return true
 	}
-	err := isAdminOfChat(msg.Sender.ID, msg.Chat)
+	err := isAdminOfChat(sender.ID, msg.Chat)
 	if errors.Is(err, ErrBotNotChannelAdmin) {
 		return true
 	}
