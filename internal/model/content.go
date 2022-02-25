@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 
 	"github.com/indes/flowerss-bot/internal/config"
@@ -92,6 +93,9 @@ func getContentByFeedItem(source *Source, item *rss.Item) (Content, error) {
 			break
 		}
 	}
+	if torrentUrl == "" && strings.HasSuffix(c.RawLink, ".torrent") {
+		torrentUrl = c.RawLink
+	}
 	if torrentUrl != "" {
 		magnetLink := util.GetMagnetLink(c.RawID)
 		if magnetLink != "" {
@@ -129,8 +133,19 @@ func GenContentAndCheckByFeedItem(s *Source, item *rss.Item) (*Content, bool, er
 }
 
 func getTorrentInfoHash(torrentUrl string) (infoHash string) {
-	_, err := url.ParseRequestURI(torrentUrl)
+	u, err := url.ParseRequestURI(torrentUrl)
 	if err != nil {
+		return
+	}
+	switch u.Hostname() {
+	case "mikanani.me":
+		base := filepath.Base(u.RawPath)
+		if strings.HasSuffix(base, ".torrent") {
+			infoHash = base[:len(base)-8]
+			return
+		}
+	case "v2.uploadbt.com":
+		infoHash = u.Query().Get("hash")
 		return
 	}
 	req, err := http.NewRequest(http.MethodGet, torrentUrl, nil)
