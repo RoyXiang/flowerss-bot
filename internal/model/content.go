@@ -96,18 +96,25 @@ func getContentByFeedItem(source *Source, item *rss.Item) (Content, error) {
 	if torrentUrl == "" && strings.HasSuffix(c.RawLink, ".torrent") {
 		torrentUrl = c.RawLink
 	}
-	if torrentUrl != "" {
+	for torrentUrl != "" {
 		magnetLink := util.GetMagnetLink(c.RawID)
 		if magnetLink != "" {
 			c.RawID = magnetLink
 			c.TorrentUrl = torrentUrl
-		} else {
-			infoHash := getTorrentInfoHash(torrentUrl)
-			if infoHash != "" {
-				c.RawID = fmt.Sprintf("%s%s", util.PrefixMagnet, infoHash)
-				c.TorrentUrl = torrentUrl
-			}
+			break
 		}
+		magnetLink = util.GetMagnetLink(torrentUrl)
+		if magnetLink != "" {
+			c.RawID = magnetLink
+			c.TorrentUrl = torrentUrl
+			break
+		}
+		infoHash := getTorrentInfoHash(torrentUrl)
+		if infoHash != "" {
+			c.RawID = fmt.Sprintf("%s%s", util.PrefixMagnet, infoHash)
+			c.TorrentUrl = torrentUrl
+		}
+		break
 	}
 
 	return c, nil
