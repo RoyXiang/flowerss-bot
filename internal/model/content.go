@@ -96,7 +96,7 @@ func getContentByFeedItem(source *Source, item *rss.Item) (Content, error) {
 	if torrentUrl == "" && strings.HasSuffix(c.RawLink, ".torrent") {
 		torrentUrl = c.RawLink
 	}
-	for torrentUrl != "" {
+	for {
 		magnetLink := util.GetMagnetLink(c.RawID)
 		if magnetLink != "" {
 			c.RawID = magnetLink
@@ -109,10 +109,14 @@ func getContentByFeedItem(source *Source, item *rss.Item) (Content, error) {
 			c.TorrentUrl = torrentUrl
 			break
 		}
-		infoHash := getTorrentInfoHash(torrentUrl)
+		infoHash, isPublic := getTorrentInfoHash(torrentUrl)
 		if infoHash != "" {
 			c.RawID = fmt.Sprintf("%s%s", util.PrefixMagnet, infoHash)
-			c.TorrentUrl = torrentUrl
+			if isPublic {
+				c.TorrentUrl = c.RawID
+			} else {
+				c.TorrentUrl = torrentUrl
+			}
 		}
 		break
 	}
@@ -139,12 +143,14 @@ func GenContentAndCheckByFeedItem(s *Source, item *rss.Item) (*Content, bool, er
 	return &content, isBroaded, nil
 }
 
-func getTorrentInfoHash(torrentUrl string) (infoHash string) {
+func getTorrentInfoHash(torrentUrl string) (infoHash string, isPublic bool) {
 	u, err := url.ParseRequestURI(torrentUrl)
 	if err != nil {
 		return
 	}
 	switch u.Hostname() {
+	case "bangumi.moe":
+		isPublic = true
 	case "mikanani.me":
 		base := filepath.Base(u.RawPath)
 		if strings.HasSuffix(base, ".torrent") {
