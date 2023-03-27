@@ -951,6 +951,46 @@ func removeKeywordBtnCtr(c *tb.Callback) {
 	removeKeywordsCurrentPage(c.Message, user, page)
 }
 
+func downloadCmdCtr(m *tb.Message) {
+	user, _ := model.FindOrCreateUserByTelegramID(int64(m.Sender.ID))
+	if user.Token == "" {
+		_, _ = B.Reply(m, "请先通过 `/set_token` 设置Put.io的token", &tb.SendOptions{
+			ParseMode: tb.ModeMarkdown,
+		})
+		return
+	}
+
+	if !m.IsReply() || m.ReplyTo.Sender.ID != B.Me.ID {
+		_, _ = B.Reply(m, "请回复本 bot 推送的消息")
+		return
+	} else if len(m.ReplyTo.Entities) == 0 {
+		_, _ = B.Reply(m, "该消息未包含可下载的内容")
+		return
+	}
+
+	var rawLink string
+	for i := len(m.ReplyTo.Entities) - 1; i >= 0; i-- {
+		entity := m.ReplyTo.Entities[i]
+		if entity.Type == tb.EntityTextLink {
+			rawLink = entity.URL
+			break
+		}
+	}
+	content := model.GetContentByRawLink(rawLink)
+	if content == nil || content.TorrentUrl == "" {
+		_, _ = B.Reply(m, "该消息未包含可下载的内容")
+		return
+	}
+
+	urlMap := map[string]string{content.TorrentUrl: content.GetTriggerId()}
+	count := AddPutIoTransfers(user.Token, urlMap)
+	if count == 0 {
+		_, _ = B.Reply(m, "添加下载任务失败")
+		return
+	}
+	_, _ = B.Reply(m, "成功添加下载任务")
+}
+
 func activeAllCmdCtr(m *tb.Message) {
 	mention, _, _ := GetArgumentsFromMessage(m)
 	user, err := getMentionedUser(m, mention, nil)

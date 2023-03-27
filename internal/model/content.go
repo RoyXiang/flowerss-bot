@@ -143,6 +143,12 @@ func GenContentAndCheckByFeedItem(s *Source, item *rss.Item) (*Content, bool, er
 	return &content, isBroaded, nil
 }
 
+func GetContentByRawLink(rawLink string) (content *Content) {
+	condition := &Content{RawLink: rawLink}
+	db.Where(condition).First(&content)
+	return
+}
+
 func getTorrentInfoHash(torrentUrl string) (infoHash string, isPublic bool) {
 	u, err := url.ParseRequestURI(torrentUrl)
 	if err != nil {

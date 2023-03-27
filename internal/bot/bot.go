@@ -99,6 +99,7 @@ func setCommands() {
 
 		{Text: "add_keyword", Description: "[keyword] 添加下载过滤关键词"},
 		{Text: "remove_keyword", Description: "移除下载过滤关键词"},
+		{Text: "download", Description: "回复推送的消息以开始下载"},
 
 		{Text: "export", Description: "导出订阅为OPML文件"},
 		{Text: "import", Description: "从OPML文件导入订阅"},
@@ -181,6 +182,8 @@ func setHandle() {
 	B.Handle("/add_keyword", addKeywordCmdCtr)
 
 	B.Handle("/remove_keyword", removeKeywordCmdCtr)
+
+	B.Handle("/download", downloadCmdCtr)
 
 	B.Handle("/check", checkCmdCtr)
 
