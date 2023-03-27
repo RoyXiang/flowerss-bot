@@ -706,6 +706,10 @@ func helpCmdCtr(m *tb.Message) {
 /check 检查当前订阅
 /set_feed_tag 设置订阅标签
 /set_interval 设置订阅刷新频率
+/set_token 设置Put.io的token
+/add_keyword 添加需下载的关键词
+/remove_keyword 移除需下载的关键词
+/download 开启特定下载任务
 /active_all 开启所有订阅
 /pause_all 暂停所有订阅
 /help 帮助

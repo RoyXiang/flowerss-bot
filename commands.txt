@@ -5,6 +5,10 @@ set - 设置订阅
 check - 检查当前订阅
 set_feed_tag - /setfeedtag [sub id] [tag1] [tag2] 设置订阅标签（最多设置三个Tag，以空格分割）
 set_interval - /setinterval [interval] [sub id] 设置订阅刷新频率（可设置多个sub id，以空格分割）
+set_token - 设置Put.io的token
+add_keyword - 添加需下载的关键词
+remove_keyword - 移除需下载的关键词
+download - 开启特定下载任务
 active_all - 开启所有订阅
 pause_all - 暂停所有订阅
 import - 导入 OPML 文件
