@@ -956,7 +956,7 @@ func removeKeywordBtnCtr(c *tb.Callback) {
 }
 
 func downloadCmdCtr(m *tb.Message) {
-	user, _ := model.FindOrCreateUserByTelegramID(int64(m.Sender.ID))
+	user, _ := model.FindOrCreateUserByTelegramID(m.Chat.ID)
 	if user.Token == "" {
 		_, _ = B.Reply(m, "请先通过 `/set_token` 设置Put.io的token", &tb.SendOptions{
 			ParseMode: tb.ModeMarkdown,
@@ -989,7 +989,10 @@ func downloadCmdCtr(m *tb.Message) {
 	urlMap := map[string]string{content.TorrentUrl: content.GetTriggerId()}
 	count := AddPutIoTransfers(user.Token, urlMap)
 	if count == 0 {
-		_, _ = B.Reply(m, "添加下载任务失败")
+		_, _ = B.Reply(m, "无法重复添加同一下载任务，请前往<a href=\"https://app.put.io/\">Put.io</a>自行新建任务", &tb.SendOptions{
+			DisableWebPagePreview: true,
+			ParseMode:             tb.ModeHTML,
+		})
 		return
 	}
 	_, _ = B.Reply(m, "成功添加下载任务")
